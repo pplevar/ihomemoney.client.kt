@@ -4,9 +4,7 @@ import com.google.gson.annotations.SerializedName
 import retrofit2.Response
 import retrofit2.http.*
 import ru.levar.domain.AccountGroup
-import ru.levar.domain.ApiResponse
 import ru.levar.domain.Category
-import ru.levar.domain.Currency
 import ru.levar.domain.ErrorType
 import ru.levar.domain.Transaction
 
