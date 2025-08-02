@@ -1,13 +1,11 @@
 # iHomemoney Kotlin API Client
-This is the simple Kotlin API Client for iHomemoney service.
+Это простой Kotlin клиент для сервиса iHomemoney.
 
-## Usage
-The simple usage is:
+## Использование
+Ниже приведен типовой способ использования:
 
 ```kotlin
-package ru.levar
-
-suspend fun main() {
+fun main() {
     val apiClient = HomemoneyApiClient()
 
     try {
@@ -26,3 +24,6 @@ suspend fun main() {
     }
 }
 ```
+
+## Ссылки
+- https://ihomemoney.com/api/api2.asmx - Документация по API.
