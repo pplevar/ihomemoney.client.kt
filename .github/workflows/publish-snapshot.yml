@@ -1,0 +1,72 @@
+name: Publish Snapshot
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+env:
+  JAVA_VERSION: '17'
+  JAVA_DISTRIBUTION: 'temurin'
+
+jobs:
+  publish-snapshot:
+    name: Build and Publish Snapshot
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: 'gradle'
+
+      - name: Generate snapshot version
+        id: version
+        run: |
+          BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/} | sed 's/\//-/g')
+          COMMIT_SHA=${GITHUB_SHA::7}
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          VERSION="1.0.0-${BRANCH_NAME}-${TIMESTAMP}-${COMMIT_SHA}-SNAPSHOT"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Publishing snapshot version: $VERSION"
+
+      - name: Update version in build.gradle.kts
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          sed -i "s/^version = .*/version = \"$VERSION\"/" build.gradle.kts
+          echo "Updated version to $VERSION"
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build and test
+        run: ./gradlew clean build test --no-daemon -x ktlintMainSourceSetCheck -x ktlintTestSourceSetCheck
+
+      - name: Publish snapshot to GitHub Packages
+        run: ./gradlew publish --no-daemon -x ktlintMainSourceSetCheck -x ktlintTestSourceSetCheck
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+
+      - name: Comment on commit (if triggered by push)
+        if: github.event_name == 'push'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body: `📦 Snapshot published: \`${{ steps.version.outputs.VERSION }}\`\n\nInstall with:\n\`\`\`kotlin\nimplementation("ru.levar:ihomemoney-client-kt:${{ steps.version.outputs.VERSION }}")\n\`\`\``
+            })

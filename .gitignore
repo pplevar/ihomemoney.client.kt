@@ -2,3 +2,7 @@
 /.idea/
 /src/main/kotlin/MainTest.kt
 /build/
+
+# Gradle properties with secrets
+gradle.properties
+local.properties

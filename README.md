@@ -24,19 +24,63 @@ A Kotlin-based REST API client for the [iHomemoney](https://ihomemoney.com) pers
 
 ## Installation
 
-### Gradle (Kotlin DSL)
+### GitHub Packages
+
+This library is published to GitHub Packages. You need to configure authentication to access it.
+
+#### Step 1: Generate GitHub Personal Access Token
+
+1. Go to [GitHub Settings → Developer settings → Personal access tokens](https://github.com/settings/tokens)
+2. Click "Generate new token (classic)"
+3. Select scopes: `read:packages`
+4. Generate and copy the token
+
+#### Step 2: Configure Gradle Authentication
+
+Add to `~/.gradle/gradle.properties`:
+
+```properties
+gpr.user=YOUR_GITHUB_USERNAME
+gpr.token=YOUR_GITHUB_TOKEN
+```
+
+#### Step 3: Add Repository and Dependency
+
+**Gradle (Kotlin DSL)**
 
 ```kotlin
+repositories {
+    mavenCentral()
+    maven {
+        url = uri("https://maven.pkg.github.com/pplevar/ihomemoney.client.kt")
+        credentials {
+            username = project.findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
+            password = project.findProperty("gpr.token") as String? ?: System.getenv("GITHUB_TOKEN")
+        }
+    }
+}
+
 dependencies {
-    implementation("ru.levar:ihomemoney-client-kt:1.0-SNAPSHOT")
+    implementation("ru.levar:ihomemoney-client-kt:1.0.0")
 }
 ```
 
-### Gradle (Groovy)
+**Gradle (Groovy)**
 
 ```groovy
+repositories {
+    mavenCentral()
+    maven {
+        url = uri("https://maven.pkg.github.com/pplevar/ihomemoney.client.kt")
+        credentials {
+            username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_ACTOR")
+            password = project.findProperty("gpr.token") ?: System.getenv("GITHUB_TOKEN")
+        }
+    }
+}
+
 dependencies {
-    implementation 'ru.levar:ihomemoney-client-kt:1.0-SNAPSHOT'
+    implementation 'ru.levar:ihomemoney-client-kt:1.0.0'
 }
 ```
 
@@ -400,7 +444,10 @@ This project is licensed under the MIT License.
 
 ## Support
 
-For issues, questions, or contributions, please open an issue on the project repository.
+- **GitHub Repository**: [https://github.com/pplevar/ihomemoney.client.kt](https://github.com/pplevar/ihomemoney.client.kt)
+- **Issue Tracker**: [https://github.com/pplevar/ihomemoney.client.kt/issues](https://github.com/pplevar/ihomemoney.client.kt/issues)
+
+For issues, questions, or contributions, please open an issue on GitHub.
 
 ## Related Documentation
 

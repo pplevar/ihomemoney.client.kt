@@ -1,10 +1,12 @@
 plugins {
     kotlin("jvm") version "2.1.20"
     id("org.jlleitschuh.gradle.ktlint") version "13.1.0"
+    id("maven-publish")
+    id("org.jetbrains.dokka") version "1.9.20"
 }
 
 group = "ru.levar"
-version = "1.0-SNAPSHOT"
+version = "1.0.0"
 
 repositories {
     mavenCentral()
@@ -49,4 +51,100 @@ ktlint {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+// ============================================================================
+// Maven Publishing Configuration
+// ============================================================================
+
+java {
+    withSourcesJar()
+    withJavadocJar()
+}
+
+tasks.named<Jar>("javadocJar") {
+    from(tasks.named("dokkaHtml"))
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            from(components["java"])
+
+            groupId = project.group.toString()
+            artifactId = "ihomemoney-client-kt"
+            version = project.version.toString()
+
+            pom {
+                name.set("iHomemoney Kotlin Client")
+                description.set("A Kotlin-based REST API client for the iHomemoney personal finance service")
+                url.set("https://github.com/pplevar/ihomemoney.client.kt")
+
+                licenses {
+                    license {
+                        name.set("MIT License")
+                        url.set("https://opensource.org/licenses/MIT")
+                    }
+                }
+
+                developers {
+                    developer {
+                        id.set("pplevar")
+                        name.set("Leonid Karavaev")
+                        email.set("pplevar@users.noreply.github.com")
+                    }
+                }
+
+                scm {
+                    connection.set("scm:git:git://github.com/pplevar/ihomemoney.client.kt.git")
+                    developerConnection.set("scm:git:ssh://github.com/pplevar/ihomemoney.client.kt.git")
+                    url.set("https://github.com/pplevar/ihomemoney.client.kt")
+                }
+            }
+        }
+    }
+
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/pplevar/ihomemoney.client.kt")
+            credentials {
+                username = project.findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
+                password = project.findProperty("gpr.token") as String? ?: System.getenv("GITHUB_TOKEN")
+            }
+        }
+    }
+}
+
+// ============================================================================
+// Publishing Tasks
+// ============================================================================
+
+tasks.register("publishSnapshot") {
+    group = "publishing"
+    description = "Publishes a SNAPSHOT version to GitHub Packages"
+
+    doFirst {
+        if (!project.version.toString().endsWith("-SNAPSHOT")) {
+            throw GradleException("Version must end with -SNAPSHOT for snapshot publishing")
+        }
+    }
+
+    dependsOn("publish")
+}
+
+tasks.register("publishRelease") {
+    group = "publishing"
+    description = "Publishes a release version to GitHub Packages"
+
+    doFirst {
+        if (project.version.toString().endsWith("-SNAPSHOT")) {
+            throw GradleException("Version must not end with -SNAPSHOT for release publishing")
+        }
+        if (project.version.toString() == "unspecified") {
+            throw GradleException("Version must be specified for release publishing")
+        }
+    }
+
+    dependsOn("publish")
 }

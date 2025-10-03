@@ -1,0 +1,190 @@
+name: Publish to GitHub Packages
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Trigger on version tags like v1.0.0, v1.2.3
+  workflow_dispatch:  # Allow manual trigger
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 1.0.0)'
+        required: true
+        type: string
+
+env:
+  JAVA_VERSION: '17'
+  JAVA_DISTRIBUTION: 'temurin'
+
+jobs:
+  publish:
+    name: Build and Publish
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write      # For creating releases
+      packages: write      # For publishing to GitHub Packages
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for version detection
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: 'gradle'
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/v}
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Publishing version: $VERSION"
+
+      - name: Validate version format
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Error: Version '$VERSION' does not match semantic versioning format (X.Y.Z)"
+            exit 1
+          fi
+          echo "Version format is valid: $VERSION"
+
+      - name: Update version in build.gradle.kts
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          sed -i "s/^version = .*/version = \"$VERSION\"/" build.gradle.kts
+          echo "Updated version to $VERSION in build.gradle.kts"
+          cat build.gradle.kts | grep "^version = "
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Run ktlint
+        run: ./gradlew ktlintCheck
+        continue-on-error: true
+
+      - name: Build project
+        run: ./gradlew clean build --no-daemon -x ktlintMainSourceSetCheck -x ktlintTestSourceSetCheck
+
+      - name: Run tests
+        run: ./gradlew test --no-daemon
+
+      - name: Generate test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: build/reports/tests/test/
+          retention-days: 30
+
+      - name: Publish to GitHub Packages
+        run: ./gradlew publish --no-daemon -x ktlintMainSourceSetCheck -x ktlintTestSourceSetCheck
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          release_name: Release v${{ steps.version.outputs.VERSION }}
+          body: |
+            ## iHomemoney Kotlin Client v${{ steps.version.outputs.VERSION }}
+
+            ### Installation
+
+            Add to your `build.gradle.kts`:
+
+            ```kotlin
+            repositories {
+                maven {
+                    url = uri("https://maven.pkg.github.com/pplevar/ihomemoney.client.kt")
+                    credentials {
+                        username = project.findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
+                        password = project.findProperty("gpr.token") as String? ?: System.getenv("GITHUB_TOKEN")
+                    }
+                }
+            }
+
+            dependencies {
+                implementation("ru.levar:ihomemoney-client-kt:${{ steps.version.outputs.VERSION }}")
+            }
+            ```
+
+            ### Maven Coordinates
+
+            ```
+            Group ID:    ru.levar
+            Artifact ID: ihomemoney-client-kt
+            Version:     ${{ steps.version.outputs.VERSION }}
+            ```
+
+            ### Changes
+
+            See commit history for detailed changes.
+          draft: false
+          prerelease: false
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            build/libs/*.jar
+            build/publications/maven/pom-default.xml
+          retention-days: 30
+
+  verify-publication:
+    name: Verify Publication
+    needs: publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+      - name: Extract version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=${GITHUB_REF#refs/tags/v}
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Wait for package availability
+        run: sleep 30
+
+      - name: Verify package in GitHub Packages
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          PACKAGE_URL="https://maven.pkg.github.com/pplevar/ihomemoney.client.kt/ru/levar/ihomemoney-client-kt/$VERSION/ihomemoney-client-kt-$VERSION.pom"
+
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "$PACKAGE_URL")
+
+          if [ $HTTP_CODE -eq 200 ]; then
+            echo "✅ Package successfully published and accessible"
+            echo "📦 Package URL: $PACKAGE_URL"
+          else
+            echo "❌ Package verification failed (HTTP $HTTP_CODE)"
+            exit 1
+          fi
