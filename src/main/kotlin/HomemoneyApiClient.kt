@@ -1,5 +1,6 @@
 package ru.levar
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Response
@@ -9,6 +10,7 @@ import ru.levar.api.HomemoneyApiService
 import ru.levar.domain.Account
 import java.util.concurrent.TimeUnit
 
+private val logger = KotlinLogging.logger {}
 
 class HomemoneyApiClient(baseUrl: String = AppConfig.serviceUri) {
     private val apiService: HomemoneyApiService
@@ -44,12 +46,12 @@ class HomemoneyApiClient(baseUrl: String = AppConfig.serviceUri) {
             token = response.body()!!.token
             return true
         } catch (e: Exception) {
-            println("Some login error: ${e.message}")
+            logger.error(e) { "Authentication failed: ${e.message}" }
             return false
         }
     }
 
-    suspend fun getAccountGroups(): HomemoneyApiService.BalanceListResponse {
+    suspend fun getAccountGroups(): ru.levar.api.dto.BalanceListResponse {
         val response = apiService.getAccountGroups(token)
         return handleResponse(response)
     }
@@ -65,12 +67,12 @@ class HomemoneyApiClient(baseUrl: String = AppConfig.serviceUri) {
         return accounts
     }
 
-    suspend fun getCategories(): HomemoneyApiService.CategoryListResponse {
+    suspend fun getCategories(): ru.levar.api.dto.CategoryListResponse {
         val response = apiService.getCategories(token)
         return handleResponse(response)
     }
 
-    suspend fun getTransactions(topCount: Int?): HomemoneyApiService.TransactionListResponse {
+    suspend fun getTransactions(topCount: Int?): ru.levar.api.dto.TransactionListResponse {
         val response = apiService.getTransactions(token, topCount)
         return handleResponse(response)
     }
