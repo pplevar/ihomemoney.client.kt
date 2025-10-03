@@ -39,12 +39,16 @@ jobs:
           distribution: ${{ env.JAVA_DISTRIBUTION }}
           cache: 'gradle'
 
-      - name: Extract version from tag
+      - name: Extract version from tag or branch
         id: version
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             VERSION="${{ github.event.inputs.version }}"
+          elif [[ "$GITHUB_REF" == refs/heads/release/v* ]]; then
+            # Extract version from release branch name (e.g., release/v1.0.0)
+            VERSION=${GITHUB_REF#refs/heads/release/v}
           else
+            # Extract version from tag (e.g., refs/tags/v1.0.0)
             VERSION=${GITHUB_REF#refs/tags/v}
           fi
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
@@ -166,6 +170,8 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             VERSION="${{ github.event.inputs.version }}"
+          elif [[ "$GITHUB_REF" == refs/heads/release/v* ]]; then
+            VERSION=${GITHUB_REF#refs/heads/release/v}
           else
             VERSION=${GITHUB_REF#refs/tags/v}
           fi
