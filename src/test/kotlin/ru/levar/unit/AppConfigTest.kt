@@ -1,5 +1,6 @@
-package ru.levar
+package ru.levar.unit
 
+import ru.levar.AppConfig
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 

@@ -1,4 +1,4 @@
-package ru.levar
+package ru.levar.unit
 
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
@@ -8,6 +8,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import ru.levar.HomemoneyApiClient
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 

@@ -1,6 +1,7 @@
-package ru.levar.domain
+package ru.levar.unit
 
 import com.google.gson.Gson
+import ru.levar.domain.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 

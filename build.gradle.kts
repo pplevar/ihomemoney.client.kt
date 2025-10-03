@@ -32,6 +32,11 @@ dependencies {
     testImplementation("com.squareup.okhttp3:mockwebserver:4.10.0")
     testImplementation("io.mockk:mockk:1.13.5")
     testImplementation("org.assertj:assertj-core:3.24.2")
+
+    // Kotest testing framework
+    testImplementation("io.kotest:kotest-runner-junit5:5.8.0")
+    testImplementation("io.kotest:kotest-assertions-core:5.8.0")
+    testImplementation("io.kotest:kotest-property:5.8.0")
 }
 
 tasks.test {

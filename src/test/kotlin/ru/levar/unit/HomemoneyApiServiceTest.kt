@@ -1,5 +1,6 @@
-package ru.levar.api
+package ru.levar.unit
 
+import ru.levar.api.HomemoneyApiService
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
