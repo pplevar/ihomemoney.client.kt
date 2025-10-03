@@ -14,7 +14,14 @@ private val logger = KotlinLogging.logger {}
 
 class HomemoneyApiClient(baseUrl: String = AppConfig.serviceUri) {
     private val apiService: HomemoneyApiService
-    var token: String = ""
+    private var _token: String = ""
+
+    var token: String
+        get() = _token
+        set(value) {
+            require(value.isNotBlank()) { "Token cannot be blank" }
+            _token = value
+        }
 
     init {
         val loggingInterceptor =
@@ -59,7 +66,12 @@ class HomemoneyApiClient(baseUrl: String = AppConfig.serviceUri) {
         }
     }
 
+    private fun requireAuthentication() {
+        require(_token.isNotBlank()) { "Authentication required. Call login() first." }
+    }
+
     suspend fun getAccountGroups(): ru.levar.api.dto.BalanceListResponse {
+        requireAuthentication()
         val response = apiService.getAccountGroups(token)
         return handleResponse(response)
     }
@@ -76,11 +88,13 @@ class HomemoneyApiClient(baseUrl: String = AppConfig.serviceUri) {
     }
 
     suspend fun getCategories(): ru.levar.api.dto.CategoryListResponse {
+        requireAuthentication()
         val response = apiService.getCategories(token)
         return handleResponse(response)
     }
 
     suspend fun getTransactions(topCount: Int?): ru.levar.api.dto.TransactionListResponse {
+        requireAuthentication()
         val response = apiService.getTransactions(token, topCount)
         return handleResponse(response)
     }

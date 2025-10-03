@@ -434,6 +434,31 @@ class HomemoneyApiClientTest {
         }
 
     @Test
+    fun `token setter should reject blank values`() {
+        // Act & Assert
+        val exception =
+            assertThrows<IllegalArgumentException> {
+                apiClient.token = ""
+            }
+        assertThat(exception.message).contains("Token cannot be blank")
+
+        val exception2 =
+            assertThrows<IllegalArgumentException> {
+                apiClient.token = "   "
+            }
+        assertThat(exception2.message).contains("Token cannot be blank")
+    }
+
+    @Test
+    fun `token setter should accept valid values`() {
+        // Act
+        apiClient.token = "valid-token-123"
+
+        // Assert
+        assertThat(apiClient.token).isEqualTo("valid-token-123")
+    }
+
+    @Test
     fun `should handle empty account groups`() =
         runTest {
             // Arrange

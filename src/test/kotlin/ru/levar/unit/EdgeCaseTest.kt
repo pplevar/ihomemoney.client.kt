@@ -326,18 +326,14 @@ class EdgeCaseTest {
     @Test
     fun `should handle null token in requests`() =
         runTest {
-            // Arrange
-            mockWebServer.enqueue(
-                MockResponse()
-                    .setResponseCode(401)
-                    .setBody("Unauthorized"),
-            )
-            apiClient.token = "" // Empty token
+            // Arrange - token is empty by default
 
-            // Act & Assert
-            assertThrows<Exception> {
-                apiClient.getCategories()
-            }
+            // Act & Assert - should throw when calling API without authentication
+            val exception =
+                assertThrows<IllegalArgumentException> {
+                    apiClient.getCategories()
+                }
+            assertThat(exception.message).contains("Authentication required")
         }
 
     @Test
