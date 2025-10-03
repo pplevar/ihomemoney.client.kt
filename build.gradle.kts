@@ -21,7 +21,13 @@ dependencies {
     // Kotlin Coroutines (для асинхронности)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4")
 
+    // Testing dependencies
     testImplementation(kotlin("test"))
+    testImplementation("org.junit.jupiter:junit-jupiter:5.9.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.6.4")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.10.0")
+    testImplementation("io.mockk:mockk:1.13.5")
+    testImplementation("org.assertj:assertj-core:3.24.2")
 }
 
 tasks.test {

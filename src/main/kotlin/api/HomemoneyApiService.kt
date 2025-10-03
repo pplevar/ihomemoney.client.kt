@@ -9,7 +9,6 @@ import ru.levar.domain.ErrorType
 import ru.levar.domain.Transaction
 
 interface HomemoneyApiService {
-
     @GET("TokenPassword")
     suspend fun login(
         @Query("username") login: String,
@@ -22,9 +21,8 @@ interface HomemoneyApiService {
     data class AuthResponse(
         @SerializedName("Error") val error: ErrorType,
         @SerializedName("access_token") val token: String,
-        @SerializedName("refresh_token") val refreshToken: String
+        @SerializedName("refresh_token") val refreshToken: String,
     )
-
 
     // Работа со счетами
     @GET("BalanceList")
@@ -36,7 +34,7 @@ interface HomemoneyApiService {
         @SerializedName("defaultcurrency") val defaultCurrencyId: String,
         @SerializedName("name") val currencyShortName: String,
         @SerializedName("ListGroupInfo") val listAccountGroupInfo: List<AccountGroup>,
-        @SerializedName("Error") val error: ErrorType
+        @SerializedName("Error") val error: ErrorType,
     )
 
     // Работа с категориями
@@ -47,31 +45,18 @@ interface HomemoneyApiService {
 
     data class CategoryListResponse(
         @SerializedName("ListCategory") val listCategory: List<Category>,
-        @SerializedName("Error") val error: ErrorType
+        @SerializedName("Error") val error: ErrorType,
     )
 
     // Работа с транзакциями
     @GET("TransactionList")
     suspend fun getTransactions(
         @Query("Token") token: String,
-        @Query("TopCount") topCount: Int?
+        @Query("TopCount") topCount: Int?,
     ): Response<TransactionListResponse>
 
     data class TransactionListResponse(
         @SerializedName("ListTransaction") val listTransaction: List<Transaction>,
-        @SerializedName("Error") val error: ErrorType
+        @SerializedName("Error") val error: ErrorType,
     )
-
-
-//    @POST("Transactions/CreateTransaction")
-//    suspend fun createTransaction(
-//        @Header("Authorization") token: String,
-//        @Body transaction: Transaction
-//    ): Response<ApiResponse<String>> // Возвращает ID созданной транзакции
-
-    // Работа с валютами
-//    @GET("Currencies/GetCurrencies")
-//    suspend fun getCurrencies(
-//        @Header("Authorization") token: String
-//    ): Response<ApiResponse<List<Currency>>>
 }
