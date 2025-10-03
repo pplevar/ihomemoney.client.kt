@@ -8,21 +8,19 @@ import java.util.concurrent.TimeUnit
 /**
  * Extension functions for MockWebServer to simplify test setup
  * Provides fluent API for common test scenarios
- */
-
-/**
+ *
  * Enqueues a successful response with JSON body
  */
 fun MockWebServer.enqueueSuccess(
     body: String,
     code: Int = 200,
-    contentType: String = "application/json"
+    contentType: String = "application/json",
 ): MockWebServer {
     this.enqueue(
         MockResponse()
             .setResponseCode(code)
             .setBody(body)
-            .setHeader("Content-Type", contentType)
+            .setHeader("Content-Type", contentType),
     )
     return this
 }
@@ -33,13 +31,13 @@ fun MockWebServer.enqueueSuccess(
 fun MockWebServer.enqueueError(
     code: Int = 500,
     body: String = "Server Error",
-    contentType: String = "text/plain"
+    contentType: String = "text/plain",
 ): MockWebServer {
     this.enqueue(
         MockResponse()
             .setResponseCode(code)
             .setBody(body)
-            .setHeader("Content-Type", contentType)
+            .setHeader("Content-Type", contentType),
     )
     return this
 }
@@ -50,13 +48,13 @@ fun MockWebServer.enqueueError(
 fun MockWebServer.enqueueDelayed(
     body: String,
     delaySeconds: Long = 1,
-    code: Int = 200
+    code: Int = 200,
 ): MockWebServer {
     this.enqueue(
         MockResponse()
             .setResponseCode(code)
             .setBody(body)
-            .setBodyDelay(delaySeconds, TimeUnit.SECONDS)
+            .setBodyDelay(delaySeconds, TimeUnit.SECONDS),
     )
     return this
 }
@@ -67,7 +65,7 @@ fun MockWebServer.enqueueDelayed(
 fun MockWebServer.enqueueMultiple(
     count: Int,
     body: String,
-    code: Int = 200
+    code: Int = 200,
 ): MockWebServer {
     repeat(count) {
         this.enqueueSuccess(body, code)
@@ -80,7 +78,7 @@ fun MockWebServer.enqueueMultiple(
  */
 fun RecordedRequest.verifyPath(
     expectedPath: String,
-    expectedParams: Map<String, String> = emptyMap()
+    expectedParams: Map<String, String> = emptyMap(),
 ): RecordedRequest {
     assert(this.path?.contains(expectedPath) == true) {
         "Expected path to contain '$expectedPath' but was '${this.path}'"
@@ -120,7 +118,7 @@ fun RecordedRequest.verifyPost(): RecordedRequest {
  */
 fun RecordedRequest.verifyHeader(
     headerName: String,
-    expectedValue: String
+    expectedValue: String,
 ): RecordedRequest {
     val actualValue = this.getHeader(headerName)
     assert(actualValue == expectedValue) {
@@ -134,7 +132,7 @@ fun RecordedRequest.verifyHeader(
  */
 fun RecordedRequest.verifyQueryParam(
     paramName: String,
-    expectedValue: String? = null
+    expectedValue: String? = null,
 ): RecordedRequest {
     val path = this.path ?: ""
     assert(path.contains("$paramName=")) {

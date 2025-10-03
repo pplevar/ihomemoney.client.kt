@@ -4,7 +4,8 @@ import com.google.gson.annotations.SerializedName
 
 data class Transaction(
     @SerializedName("TransactionId") val id: String,
-    @SerializedName("Date") val date: String, // Формат "2023-01-01T00:00:00"
+    // Формат "2023-01-01T00:00:00"
+    @SerializedName("Date") val date: String,
     @SerializedName("DateUnix") val dateUnix: String,
     @SerializedName("CategoryId") val categoryId: Int,
     @SerializedName("CategoryFullName") val categoryFullName: String,
@@ -18,6 +19,7 @@ data class Transaction(
     @SerializedName("TransAccountId") val transAccountId: String,
     @SerializedName("TransCurrencyId") val transCurrencyId: Int,
     @SerializedName("GUID") val comment: String,
-    @SerializedName("CreateDate") val createDate: String, // Формат "2023-01-01T00:00:00"
-    @SerializedName("CreateDateUnix") val createDateUnix: String
+    // Формат "2023-01-01T00:00:00"
+    @SerializedName("CreateDate") val createDate: String,
+    @SerializedName("CreateDateUnix") val createDateUnix: String,
 )

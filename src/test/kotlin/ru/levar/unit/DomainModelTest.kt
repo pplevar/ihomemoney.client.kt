@@ -1,22 +1,29 @@
 package ru.levar.unit
 
 import com.google.gson.Gson
-import ru.levar.domain.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import ru.levar.domain.Account
+import ru.levar.domain.AccountCurrencyInfo
+import ru.levar.domain.AccountGroup
+import ru.levar.domain.AuthRequest
+import ru.levar.domain.Category
+import ru.levar.domain.Currency
+import ru.levar.domain.ErrorType
+import ru.levar.domain.Transaction
 
 /**
  * Unit tests for domain model classes
  * Tests JSON serialization/deserialization and data class properties
  */
 class DomainModelTest {
-
     private val gson = Gson()
 
     @Test
     fun `Account should deserialize from JSON correctly`() {
         // Arrange
-        val json = """
+        val json =
+            """
             {
                 "id": "acc123",
                 "name": "Checking Account",
@@ -27,7 +34,7 @@ class DomainModelTest {
                 "ListCurrencyInfo": [],
                 "isShowInGroup": false
             }
-        """.trimIndent()
+            """.trimIndent()
 
         // Act
         val account = gson.fromJson(json, Account::class.java)
@@ -46,7 +53,8 @@ class DomainModelTest {
     @Test
     fun `AccountGroup should deserialize with nested accounts`() {
         // Arrange
-        val json = """
+        val json =
+            """
             {
                 "id": "group1",
                 "name": "Main Group",
@@ -66,7 +74,7 @@ class DomainModelTest {
                     }
                 ]
             }
-        """.trimIndent()
+            """.trimIndent()
 
         // Act
         val group = gson.fromJson(json, AccountGroup::class.java)
@@ -84,7 +92,8 @@ class DomainModelTest {
     @Test
     fun `Category should deserialize with correct type mapping`() {
         // Arrange - Expense category
-        val expenseJson = """
+        val expenseJson =
+            """
             {
                 "id": "cat1",
                 "type": 0,
@@ -93,7 +102,7 @@ class DomainModelTest {
                 "isArchive": false,
                 "isPinned": true
             }
-        """.trimIndent()
+            """.trimIndent()
 
         // Act
         val expense = gson.fromJson(expenseJson, Category::class.java)
@@ -110,7 +119,8 @@ class DomainModelTest {
     @Test
     fun `Category should handle income type`() {
         // Arrange - Income category
-        val incomeJson = """
+        val incomeJson =
+            """
             {
                 "id": "cat2",
                 "type": 1,
@@ -119,7 +129,7 @@ class DomainModelTest {
                 "isArchive": false,
                 "isPinned": false
             }
-        """.trimIndent()
+            """.trimIndent()
 
         // Act
         val income = gson.fromJson(incomeJson, Category::class.java)
@@ -132,7 +142,8 @@ class DomainModelTest {
     @Test
     fun `Transaction should deserialize with all fields`() {
         // Arrange
-        val json = """
+        val json =
+            """
             {
                 "TransactionId": "trans123",
                 "Date": "2024-01-15T10:30:00",
@@ -152,7 +163,7 @@ class DomainModelTest {
                 "CreateDate": "2024-01-15T10:35:00",
                 "CreateDateUnix": "1705318500"
             }
-        """.trimIndent()
+            """.trimIndent()
 
         // Act
         val transaction = gson.fromJson(json, Transaction::class.java)
@@ -175,7 +186,8 @@ class DomainModelTest {
     @Test
     fun `Currency should deserialize correctly`() {
         // Arrange
-        val json = """
+        val json =
+            """
             {
                 "id": 980,
                 "shortName": "UAH",
@@ -183,7 +195,7 @@ class DomainModelTest {
                 "balance": 5000.75,
                 "display": true
             }
-        """.trimIndent()
+            """.trimIndent()
 
         // Act
         val currency = gson.fromJson(json, Currency::class.java)
@@ -199,7 +211,8 @@ class DomainModelTest {
     @Test
     fun `AccountCurrencyInfo should deserialize correctly`() {
         // Arrange
-        val json = """
+        val json =
+            """
             {
                 "id": "curr1",
                 "shortName": "EUR",
@@ -207,7 +220,7 @@ class DomainModelTest {
                 "balance": 1000.00,
                 "display": true
             }
-        """.trimIndent()
+            """.trimIndent()
 
         // Act
         val currencyInfo = gson.fromJson(json, AccountCurrencyInfo::class.java)
@@ -223,12 +236,13 @@ class DomainModelTest {
     @Test
     fun `ErrorType should deserialize correctly`() {
         // Arrange
-        val json = """
+        val json =
+            """
             {
                 "code": 404,
                 "message": "Not found"
             }
-        """.trimIndent()
+            """.trimIndent()
 
         // Act
         val error = gson.fromJson(json, ErrorType::class.java)
@@ -241,12 +255,13 @@ class DomainModelTest {
     @Test
     fun `AuthRequest should serialize correctly`() {
         // Arrange
-        val authRequest = AuthRequest(
-            login = "testuser",
-            password = "testpass",
-            deviceId = "5",
-            appKey = "demo"
-        )
+        val authRequest =
+            AuthRequest(
+                login = "testuser",
+                password = "testpass",
+                deviceId = "5",
+                appKey = "demo",
+            )
 
         // Act
         val json = gson.toJson(authRequest)
@@ -261,16 +276,17 @@ class DomainModelTest {
     @Test
     fun `Account data class should support copy`() {
         // Arrange
-        val account = Account(
-            id = "1",
-            name = "Original",
-            isDefault = false,
-            display = true,
-            includeBalance = true,
-            hasOpenCurrencies = false,
-            listCurrencyInfo = emptyList(),
-            isDeleted = false
-        )
+        val account =
+            Account(
+                id = "1",
+                name = "Original",
+                isDefault = false,
+                display = true,
+                includeBalance = true,
+                hasOpenCurrencies = false,
+                listCurrencyInfo = emptyList(),
+                isDeleted = false,
+            )
 
         // Act
         val copied = account.copy(name = "Modified")
@@ -295,7 +311,8 @@ class DomainModelTest {
     @Test
     fun `Transaction with zero amount should be valid`() {
         // Arrange
-        val json = """
+        val json =
+            """
             {
                 "TransactionId": "trans0",
                 "Date": "2024-01-01T00:00:00",
@@ -315,7 +332,7 @@ class DomainModelTest {
                 "CreateDate": "2024-01-01T00:00:00",
                 "CreateDateUnix": "1704067200"
             }
-        """.trimIndent()
+            """.trimIndent()
 
         // Act
         val transaction = gson.fromJson(json, Transaction::class.java)
@@ -328,7 +345,8 @@ class DomainModelTest {
     @Test
     fun `Account with multiple currencies should deserialize correctly`() {
         // Arrange
-        val json = """
+        val json =
+            """
             {
                 "id": "multi-curr-acc",
                 "name": "Multi Currency",
@@ -354,7 +372,7 @@ class DomainModelTest {
                 ],
                 "isShowInGroup": false
             }
-        """.trimIndent()
+            """.trimIndent()
 
         // Act
         val account = gson.fromJson(json, Account::class.java)

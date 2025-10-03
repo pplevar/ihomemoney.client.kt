@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm") version "2.1.20"
+    id("org.jlleitschuh.gradle.ktlint") version "13.1.0"
 }
 
 group = "ru.levar"
@@ -37,6 +38,13 @@ dependencies {
     testImplementation("io.kotest:kotest-runner-junit5:5.8.0")
     testImplementation("io.kotest:kotest-assertions-core:5.8.0")
     testImplementation("io.kotest:kotest-property:5.8.0")
+}
+
+ktlint {
+    version.set("1.0.1")
+    android.set(false)
+    outputToConsole.set(true)
+    outputColorName.set("RED")
 }
 
 tasks.test {

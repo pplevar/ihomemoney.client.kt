@@ -14,30 +14,38 @@ private val logger = KotlinLogging.logger {}
 
 class HomemoneyApiClient(baseUrl: String = AppConfig.serviceUri) {
     private val apiService: HomemoneyApiService
-    var token: String = "";
+    var token: String = ""
 
     init {
-        val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
-        }
+        val loggingInterceptor =
+            HttpLoggingInterceptor().apply {
+                level = HttpLoggingInterceptor.Level.BODY
+            }
 
-        val client = OkHttpClient.Builder()
-            .addInterceptor(loggingInterceptor)
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
-            .build()
+        val client =
+            OkHttpClient.Builder()
+                .addInterceptor(loggingInterceptor)
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .writeTimeout(30, TimeUnit.SECONDS)
+                .build()
 
-        val retrofit = Retrofit.Builder()
-            .baseUrl(baseUrl)
-            .client(client)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
+        val retrofit =
+            Retrofit.Builder()
+                .baseUrl(baseUrl)
+                .client(client)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build()
 
         apiService = retrofit.create(HomemoneyApiService::class.java)
     }
 
-    suspend fun login(login: String, password: String, clientId: String, clientSecret: String): Boolean {
+    suspend fun login(
+        login: String,
+        password: String,
+        clientId: String,
+        clientSecret: String,
+    ): Boolean {
         try {
             val response = apiService.login(login, password, clientId, clientSecret)
             if (!response.isSuccessful || response.body()?.error?.code != 0) {
@@ -59,8 +67,8 @@ class HomemoneyApiClient(baseUrl: String = AppConfig.serviceUri) {
     suspend fun getAccounts(): List<Account> {
         val accGroups = getAccountGroups()
         val accounts = mutableListOf<Account>()
-        for(accGroup in accGroups.listAccountGroupInfo) {
-            for(acc in accGroup.listAccountInfo) {
+        for (accGroup in accGroups.listAccountGroupInfo) {
+            for (acc in accGroup.listAccountInfo) {
                 accounts.add(acc)
             }
         }

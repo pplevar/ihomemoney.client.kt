@@ -1,7 +1,8 @@
 package ru.levar.api
 
 import retrofit2.Response
-import retrofit2.http.*
+import retrofit2.http.GET
+import retrofit2.http.Query
 import ru.levar.api.dto.AuthResponse
 import ru.levar.api.dto.BalanceListResponse
 import ru.levar.api.dto.CategoryListResponse

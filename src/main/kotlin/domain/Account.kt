@@ -10,5 +10,5 @@ data class Account(
     @SerializedName("includeBalance") val includeBalance: Boolean,
     @SerializedName("hasOpenCurrencies") val hasOpenCurrencies: Boolean,
     @SerializedName("ListCurrencyInfo") val listCurrencyInfo: List<AccountCurrencyInfo>,
-    @SerializedName("isShowInGroup") val isDeleted: Boolean
+    @SerializedName("isShowInGroup") val isDeleted: Boolean,
 )

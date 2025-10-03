@@ -1,15 +1,14 @@
 package ru.levar.unit
 
-import ru.levar.AppConfig
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import ru.levar.AppConfig
 
 /**
  * Unit tests for AppConfig
  * Tests configuration loading from properties file
  */
 class AppConfigTest {
-
     @Test
     fun `should load serviceUri from test config`() {
         // Act

@@ -12,8 +12,8 @@ import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockWebServer
 import ru.levar.HomemoneyApiClient
 import ru.levar.testutils.TestDataFactory
-import ru.levar.testutils.enqueueSuccess
 import ru.levar.testutils.enqueueError
+import ru.levar.testutils.enqueueSuccess
 import ru.levar.testutils.verifyPath
 import ru.levar.testutils.verifyQueryParam
 
@@ -46,12 +46,13 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 mockWebServer.enqueueSuccess(TestDataFactory.createSuccessfulAuthResponse())
 
                 // Act
-                val result = apiClient.login(
-                    TestDataFactory.DEFAULT_USERNAME,
-                    TestDataFactory.DEFAULT_PASSWORD,
-                    TestDataFactory.DEFAULT_CLIENT_ID,
-                    TestDataFactory.DEFAULT_CLIENT_SECRET
-                )
+                val result =
+                    apiClient.login(
+                        TestDataFactory.DEFAULT_USERNAME,
+                        TestDataFactory.DEFAULT_PASSWORD,
+                        TestDataFactory.DEFAULT_CLIENT_ID,
+                        TestDataFactory.DEFAULT_CLIENT_SECRET,
+                    )
 
                 // Assert
                 result shouldBe true
@@ -71,7 +72,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
             runTest {
                 // Arrange
                 mockWebServer.enqueueSuccess(
-                    TestDataFactory.createFailedAuthResponse(401, "Invalid credentials")
+                    TestDataFactory.createFailedAuthResponse(401, "Invalid credentials"),
                 )
 
                 // Act
@@ -107,12 +108,13 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
         it("should retrieve account groups") {
             runTest {
                 // Arrange
-                val testGroup = TestDataFactory.createAccountGroup(
-                    id = "group1",
-                    name = "Personal Accounts"
-                )
+                val testGroup =
+                    TestDataFactory.createAccountGroup(
+                        id = "group1",
+                        name = "Personal Accounts",
+                    )
                 mockWebServer.enqueueSuccess(
-                    TestDataFactory.createBalanceListResponse(listOf(testGroup))
+                    TestDataFactory.createBalanceListResponse(listOf(testGroup)),
                 )
 
                 // Act
@@ -134,7 +136,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 val group2 = TestDataFactory.createAccountGroup(accounts = listOf(account2))
 
                 mockWebServer.enqueueSuccess(
-                    TestDataFactory.createBalanceListResponse(listOf(group1, group2))
+                    TestDataFactory.createBalanceListResponse(listOf(group1, group2)),
                 )
 
                 // Act
@@ -170,19 +172,21 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
         it("should retrieve categories") {
             runTest {
                 // Arrange
-                val expenseCategory = TestDataFactory.createCategory(
-                    id = "cat1",
-                    type = 0,
-                    name = "Food"
-                )
-                val incomeCategory = TestDataFactory.createCategory(
-                    id = "cat2",
-                    type = 1,
-                    name = "Salary"
-                )
+                val expenseCategory =
+                    TestDataFactory.createCategory(
+                        id = "cat1",
+                        type = 0,
+                        name = "Food",
+                    )
+                val incomeCategory =
+                    TestDataFactory.createCategory(
+                        id = "cat2",
+                        type = 1,
+                        name = "Salary",
+                    )
 
                 mockWebServer.enqueueSuccess(
-                    TestDataFactory.createCategoryListResponse(listOf(expenseCategory, incomeCategory))
+                    TestDataFactory.createCategoryListResponse(listOf(expenseCategory, incomeCategory)),
                 )
 
                 // Act
@@ -218,14 +222,15 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
         it("should retrieve transactions with topCount parameter") {
             runTest {
                 // Arrange
-                val transaction = TestDataFactory.createTransaction(
-                    id = "trans1",
-                    description = "Grocery shopping",
-                    total = 125.50
-                )
+                val transaction =
+                    TestDataFactory.createTransaction(
+                        id = "trans1",
+                        description = "Grocery shopping",
+                        total = 125.50,
+                    )
 
                 mockWebServer.enqueueSuccess(
-                    TestDataFactory.createTransactionListResponse(listOf(transaction))
+                    TestDataFactory.createTransactionListResponse(listOf(transaction)),
                 )
 
                 // Act
@@ -272,9 +277,10 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 mockWebServer.enqueueError(404, "Not Found")
 
                 // Act & Assert
-                val exception = shouldThrow<Exception> {
-                    apiClient.getCategories()
-                }
+                val exception =
+                    shouldThrow<Exception> {
+                        apiClient.getCategories()
+                    }
                 exception.message shouldContain "404"
             }
         }
@@ -285,9 +291,10 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 mockWebServer.enqueueError(401, "Unauthorized")
 
                 // Act & Assert
-                val exception = shouldThrow<Exception> {
-                    apiClient.getCategories()
-                }
+                val exception =
+                    shouldThrow<Exception> {
+                        apiClient.getCategories()
+                    }
                 exception.message shouldContain "401"
             }
         }
@@ -298,9 +305,10 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 mockWebServer.enqueueError(500, "Internal Server Error")
 
                 // Act & Assert
-                val exception = shouldThrow<Exception> {
-                    apiClient.getCategories()
-                }
+                val exception =
+                    shouldThrow<Exception> {
+                        apiClient.getCategories()
+                    }
                 exception.message shouldContain "500"
             }
         }
@@ -318,8 +326,8 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 mockWebServer.enqueueSuccess(
                     TestDataFactory.createSuccessfulAuthResponse(
                         token = "new-access-token",
-                        refreshToken = "new-refresh-token"
-                    )
+                        refreshToken = "new-refresh-token",
+                    ),
                 )
 
                 // Act

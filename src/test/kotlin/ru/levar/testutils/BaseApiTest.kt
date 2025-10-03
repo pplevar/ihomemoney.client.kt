@@ -12,7 +12,6 @@ import ru.levar.HomemoneyApiClient
  * SAFETY: All tests use MockWebServer - NO production endpoints are contacted
  */
 abstract class BaseApiTest {
-
     protected lateinit var mockWebServer: MockWebServer
     protected lateinit var apiClient: HomemoneyApiClient
     protected lateinit var baseUrl: String
@@ -45,10 +44,10 @@ abstract class BaseApiTest {
      */
     protected fun enqueueSuccessfulLogin(
         token: String = TestDataFactory.DEFAULT_TOKEN,
-        refreshToken: String = TestDataFactory.DEFAULT_REFRESH_TOKEN
+        refreshToken: String = TestDataFactory.DEFAULT_REFRESH_TOKEN,
     ) {
         mockWebServer.enqueueSuccess(
-            TestDataFactory.createSuccessfulAuthResponse(token, refreshToken)
+            TestDataFactory.createSuccessfulAuthResponse(token, refreshToken),
         )
     }
 
@@ -57,10 +56,10 @@ abstract class BaseApiTest {
      */
     protected fun enqueueFailedLogin(
         errorCode: Int = 401,
-        errorMessage: String = "Authentication failed"
+        errorMessage: String = "Authentication failed",
     ) {
         mockWebServer.enqueueSuccess(
-            TestDataFactory.createFailedAuthResponse(errorCode, errorMessage)
+            TestDataFactory.createFailedAuthResponse(errorCode, errorMessage),
         )
     }
 }

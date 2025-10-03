@@ -7,5 +7,5 @@ data class AccountCurrencyInfo(
     @SerializedName("shortName") val shortName: String,
     @SerializedName("rate") val rate: Double,
     @SerializedName("balance") val balance: Double,
-    @SerializedName("display") val display: Boolean
+    @SerializedName("display") val display: Boolean,
 )
