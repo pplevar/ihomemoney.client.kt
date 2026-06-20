@@ -205,9 +205,9 @@ class EdgeCaseTest {
             val result = apiClient.getTransactions(null)
 
             // Assert
-            assertThat(result.listTransaction).hasSize(1000)
-            assertThat(result.listTransaction.first().id).isEqualTo("trans1")
-            assertThat(result.listTransaction.last().id).isEqualTo("trans1000")
+            assertThat(result).hasSize(1000)
+            assertThat(result.first().id).isEqualTo("trans1")
+            assertThat(result.last().id).isEqualTo("trans1000")
         }
 
     @Test
@@ -499,7 +499,7 @@ class EdgeCaseTest {
             val result = apiClient.getAccountGroups()
 
             // Assert
-            assertThat(result.listAccountGroupInfo[0].listAccountInfo[0].listCurrencyInfo).isEmpty()
+            assertThat(result[0].listAccountInfo[0].listCurrencyInfo).isEmpty()
         }
 
     @Test
@@ -528,9 +528,9 @@ class EdgeCaseTest {
             val result3 = apiClient.getCategories()
 
             // Assert - All should succeed
-            assertThat(result1.listCategory).isEmpty()
-            assertThat(result2.listCategory).isEmpty()
-            assertThat(result3.listCategory).isEmpty()
+            assertThat(result1).isEmpty()
+            assertThat(result2).isEmpty()
+            assertThat(result3).isEmpty()
             assertThat(mockWebServer.requestCount).isEqualTo(3)
         }
 
@@ -558,7 +558,7 @@ class EdgeCaseTest {
             val result = apiClient.getCategories()
 
             // Assert
-            assertThat(result.listCategory).isEmpty()
+            assertThat(result).isEmpty()
         }
 
     @Test
@@ -583,7 +583,7 @@ class EdgeCaseTest {
             val result = apiClient.getTransactions(0)
 
             // Assert
-            assertThat(result.listTransaction).isEmpty()
+            assertThat(result).isEmpty()
 
             val request = mockWebServer.takeRequest()
             assertThat(request.path).contains("TopCount=0")
@@ -611,7 +611,7 @@ class EdgeCaseTest {
             val result = apiClient.getTransactions(-1)
 
             // Assert
-            assertThat(result.listTransaction).isEmpty()
+            assertThat(result).isEmpty()
 
             val request = mockWebServer.takeRequest()
             assertThat(request.path).contains("TopCount=-1")

@@ -158,11 +158,9 @@ class HomemoneyApiClientTest {
             val result = apiClient.getAccountGroups()
 
             // Assert
-            assertThat(result.defaultCurrencyId).isEqualTo("980")
-            assertThat(result.currencyShortName).isEqualTo("UAH")
-            assertThat(result.listAccountGroupInfo).hasSize(1)
-            assertThat(result.listAccountGroupInfo[0].name).isEqualTo("Main Accounts")
-            assertThat(result.listAccountGroupInfo[0].listAccountInfo).hasSize(1)
+            assertThat(result).hasSize(1)
+            assertThat(result[0].name).isEqualTo("Main Accounts")
+            assertThat(result[0].listAccountInfo).hasSize(1)
 
             // Verify request
             val request = mockWebServer.takeRequest()
@@ -287,11 +285,11 @@ class HomemoneyApiClientTest {
             val result = apiClient.getCategories()
 
             // Assert
-            assertThat(result.listCategory).hasSize(2)
-            assertThat(result.listCategory[0].name).isEqualTo("Food")
-            assertThat(result.listCategory[0].type).isEqualTo(0)
-            assertThat(result.listCategory[1].name).isEqualTo("Salary")
-            assertThat(result.listCategory[1].type).isEqualTo(1)
+            assertThat(result).hasSize(2)
+            assertThat(result[0].name).isEqualTo("Food")
+            assertThat(result[0].type).isEqualTo(0)
+            assertThat(result[1].name).isEqualTo("Salary")
+            assertThat(result[1].type).isEqualTo(1)
 
             // Verify request
             val request = mockWebServer.takeRequest()
@@ -341,10 +339,10 @@ class HomemoneyApiClientTest {
             val result = apiClient.getTransactions(10)
 
             // Assert
-            assertThat(result.listTransaction).hasSize(1)
-            assertThat(result.listTransaction[0].id).isEqualTo("trans1")
-            assertThat(result.listTransaction[0].total).isEqualTo(150.50)
-            assertThat(result.listTransaction[0].description).isEqualTo("Weekly shopping")
+            assertThat(result).hasSize(1)
+            assertThat(result[0].id).isEqualTo("trans1")
+            assertThat(result[0].total).isEqualTo(150.50)
+            assertThat(result[0].description).isEqualTo("Weekly shopping")
 
             // Verify request
             val request = mockWebServer.takeRequest()
@@ -375,12 +373,38 @@ class HomemoneyApiClientTest {
             val result = apiClient.getTransactions(null)
 
             // Assert
-            assertThat(result.listTransaction).isEmpty()
+            assertThat(result).isEmpty()
 
             // Verify request doesn't include TopCount parameter
             val request = mockWebServer.takeRequest()
             assertThat(request.path).contains("TransactionList")
             assertThat(request.path).doesNotContain("TopCount")
+        }
+
+    @Test
+    fun `getCategories should throw when API returns error code on HTTP 200`() =
+        runTest {
+            // Arrange: HTTP 200 but API-level error in the Error envelope
+            val mockResponse =
+                MockResponse()
+                    .setResponseCode(200)
+                    .setBody(
+                        """
+                        {
+                            "ListCategory": [],
+                            "Error": {"code": 5, "message": "Session expired"}
+                        }
+                        """.trimIndent(),
+                    )
+            mockWebServer.enqueue(mockResponse)
+            apiClient.token = "test-token"
+
+            // Act & Assert
+            val exception =
+                assertThrows<Exception> {
+                    apiClient.getCategories()
+                }
+            assertThat(exception.message).contains("Session expired")
         }
 
     @Test
