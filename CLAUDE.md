@@ -217,3 +217,17 @@ Configuration loaded via `AppConfig` singleton object.
 - **TEST_DOCUMENTATION.md**: Comprehensive test suite documentation
 - **TEST_REPORT.md**: Detailed test execution report
 - **README.md**: Basic usage examples in Russian
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs live as GitHub issues (`pplevar/ihomemoney.client.kt`), managed via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Five canonical triage roles using default label names (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.

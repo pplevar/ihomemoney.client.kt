@@ -399,11 +399,13 @@ class HomemoneyApiClientTest {
             mockWebServer.enqueue(mockResponse)
             apiClient.token = "test-token"
 
-            // Act & Assert
+            // Act & Assert - the unified seam must surface both the API error code
+            // and the message in one interpretation
             val exception =
                 assertThrows<Exception> {
                     apiClient.getCategories()
                 }
+            assertThat(exception.message).contains("API error 5")
             assertThat(exception.message).contains("Session expired")
         }
 

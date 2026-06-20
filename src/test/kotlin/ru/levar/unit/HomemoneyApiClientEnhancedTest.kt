@@ -324,11 +324,12 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                     """.trimIndent(),
                 )
 
-                // Act & Assert
+                // Act & Assert - uniform interpretation surfaces code + message
                 val exception =
                     shouldThrow<Exception> {
                         apiClient.getTransactions(10)
                     }
+                exception.message shouldContain "API error 7"
                 exception.message shouldContain "Token expired"
             }
         }
@@ -347,11 +348,12 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                     """.trimIndent(),
                 )
 
-                // Act & Assert
+                // Act & Assert - uniform interpretation surfaces code + message
                 val exception =
                     shouldThrow<Exception> {
                         apiClient.getAccountGroups()
                     }
+                exception.message shouldContain "API error 7"
                 exception.message shouldContain "Token expired"
             }
         }

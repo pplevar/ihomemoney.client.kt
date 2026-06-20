@@ -55,7 +55,11 @@ class EdgeCaseTest {
     @Test
     fun `should handle empty response body`() =
         runTest {
-            // Arrange
+            // Arrange - HTTP 200 with a literal empty body.
+            // NOTE: Gson's converter rejects empty input ("End of input ...") before the
+            // client's own null-body guard can run, so an empty body surfaces as a parse
+            // error rather than the seam's "empty response body" message. This test pins
+            // that actual behavior so a future converter/seam change is caught.
             mockWebServer.enqueue(
                 MockResponse()
                     .setResponseCode(200)
@@ -64,9 +68,31 @@ class EdgeCaseTest {
             apiClient.token = "token"
 
             // Act & Assert
-            assertThrows<Exception> {
-                apiClient.getCategories()
-            }
+            val exception =
+                assertThrows<Exception> {
+                    apiClient.getCategories()
+                }
+            assertThat(exception.message).contains("End of input")
+        }
+
+    @Test
+    fun `should throw empty response body when body deserializes to null`() =
+        runTest {
+            // Arrange - HTTP 204 No Content: Retrofit returns a successful response
+            // with a null body without invoking the Gson converter. This is the path
+            // that actually reaches the seam's null-body guard.
+            mockWebServer.enqueue(
+                MockResponse()
+                    .setResponseCode(204),
+            )
+            apiClient.token = "token"
+
+            // Act & Assert - seam interprets the null body as the empty-body branch
+            val exception =
+                assertThrows<Exception> {
+                    apiClient.getCategories()
+                }
+            assertThat(exception.message).contains("empty response body")
         }
 
 //     @Test
