@@ -155,11 +155,11 @@ class ApiIntegrationTest {
             assertThat(accounts).hasSize(1)
             assertThat(accounts[0].name).isEqualTo("Cash")
 
-            assertThat(categories.listCategory).hasSize(1)
-            assertThat(categories.listCategory[0].name).isEqualTo("Food")
+            assertThat(categories).hasSize(1)
+            assertThat(categories[0].name).isEqualTo("Food")
 
-            assertThat(transactions.listTransaction).hasSize(1)
-            assertThat(transactions.listTransaction[0].total).isEqualTo(120.00)
+            assertThat(transactions).hasSize(1)
+            assertThat(transactions[0].total).isEqualTo(120.00)
 
             // Verify all requests were made
             assertThat(mockWebServer.requestCount).isEqualTo(4)
@@ -350,8 +350,8 @@ class ApiIntegrationTest {
 
             // Assert - Should handle empty lists gracefully
             assertThat(accounts).isEmpty()
-            assertThat(categories.listCategory).isEmpty()
-            assertThat(transactions.listTransaction).isEmpty()
+            assertThat(categories).isEmpty()
+            assertThat(transactions).isEmpty()
         }
 
     @Test
@@ -503,7 +503,7 @@ class ApiIntegrationTest {
             val transactions = apiClient.getTransactions(5)
 
             // Assert
-            assertThat(transactions.listTransaction).hasSize(1)
+            assertThat(transactions).hasSize(1)
 
             val request = mockWebServer.takeRequest() // Login
             val transRequest = mockWebServer.takeRequest() // Transactions

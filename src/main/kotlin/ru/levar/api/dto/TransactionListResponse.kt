@@ -4,7 +4,7 @@ import com.google.gson.annotations.SerializedName
 import ru.levar.domain.ErrorType
 import ru.levar.domain.Transaction
 
-data class TransactionListResponse(
+internal data class TransactionListResponse(
     @SerializedName("ListTransaction") val listTransaction: List<Transaction>,
-    @SerializedName("Error") val error: ErrorType,
-)
+    @SerializedName("Error") override val error: ErrorType,
+) : ApiEnvelope

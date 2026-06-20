@@ -8,7 +8,7 @@ import ru.levar.api.dto.BalanceListResponse
 import ru.levar.api.dto.CategoryListResponse
 import ru.levar.api.dto.TransactionListResponse
 
-interface HomemoneyApiService {
+internal interface HomemoneyApiService {
     @GET("TokenPassword")
     suspend fun login(
         @Query("username") login: String,

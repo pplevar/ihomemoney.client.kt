@@ -121,9 +121,8 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 val result = apiClient.getAccountGroups()
 
                 // Assert
-                result.listAccountGroupInfo shouldHaveSize 1
-                result.listAccountGroupInfo[0].name shouldBe "Personal Accounts"
-                result.defaultCurrencyId shouldBe TestDataFactory.DEFAULT_CURRENCY_ID
+                result shouldHaveSize 1
+                result[0].name shouldBe "Personal Accounts"
             }
         }
 
@@ -193,9 +192,9 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 val result = apiClient.getCategories()
 
                 // Assert
-                result.listCategory shouldHaveSize 2
-                result.listCategory[0].type shouldBe 0 // Expense
-                result.listCategory[1].type shouldBe 1 // Income
+                result shouldHaveSize 2
+                result[0].type shouldBe 0 // Expense
+                result[1].type shouldBe 1 // Income
             }
         }
 
@@ -208,7 +207,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 val result = apiClient.getCategories()
 
                 // Assert
-                result.listCategory.shouldBeEmpty()
+                result.shouldBeEmpty()
             }
         }
     }
@@ -237,9 +236,9 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 val result = apiClient.getTransactions(10)
 
                 // Assert
-                result.listTransaction shouldHaveSize 1
-                result.listTransaction[0].id shouldBe "trans1"
-                result.listTransaction[0].total shouldBe 125.50
+                result shouldHaveSize 1
+                result[0].id shouldBe "trans1"
+                result[0].total shouldBe 125.50
 
                 // Verify request
                 val request = mockWebServer.takeRequest()
@@ -256,7 +255,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 val result = apiClient.getTransactions(null)
 
                 // Assert
-                result.listTransaction.shouldBeEmpty()
+                result.shouldBeEmpty()
 
                 // Verify request doesn't include TopCount
                 val request = mockWebServer.takeRequest()
@@ -310,6 +309,50 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                         apiClient.getCategories()
                     }
                 exception.message shouldContain "500"
+            }
+        }
+
+        it("should throw when getTransactions returns API error on HTTP 200") {
+            runTest {
+                // Arrange: HTTP 200 with a non-zero API error code
+                mockWebServer.enqueueSuccess(
+                    """
+                    {
+                        "ListTransaction": [],
+                        "Error": {"code": 7, "message": "Token expired"}
+                    }
+                    """.trimIndent(),
+                )
+
+                // Act & Assert
+                val exception =
+                    shouldThrow<Exception> {
+                        apiClient.getTransactions(10)
+                    }
+                exception.message shouldContain "Token expired"
+            }
+        }
+
+        it("should throw when getAccountGroups returns API error on HTTP 200") {
+            runTest {
+                // Arrange: HTTP 200 with a non-zero API error code
+                mockWebServer.enqueueSuccess(
+                    """
+                    {
+                        "defaultcurrency": "980",
+                        "name": "UAH",
+                        "ListGroupInfo": [],
+                        "Error": {"code": 7, "message": "Token expired"}
+                    }
+                    """.trimIndent(),
+                )
+
+                // Act & Assert
+                val exception =
+                    shouldThrow<Exception> {
+                        apiClient.getAccountGroups()
+                    }
+                exception.message shouldContain "Token expired"
             }
         }
     }
