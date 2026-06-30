@@ -8,9 +8,11 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import ru.levar.ApiFailure
+import ru.levar.ApiResult
 import ru.levar.HomemoneyApiClient
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import ru.levar.testutils.expectErr
+import ru.levar.testutils.expectOk
 
 /**
  * Unit tests for HomemoneyApiClient
@@ -59,7 +61,7 @@ class HomemoneyApiClientTest {
             val result = apiClient.login("testuser", "testpass", "5", "demo")
 
             // Assert
-            assertTrue(result, "Login should succeed")
+            assertThat(result).isEqualTo(ApiResult.Ok(Unit))
             assertThat(apiClient.token).isEqualTo("test-token-123")
 
             // Verify request was made correctly
@@ -93,12 +95,12 @@ class HomemoneyApiClientTest {
             val result = apiClient.login("wronguser", "wrongpass", "5", "demo")
 
             // Assert
-            assertFalse(result, "Login should fail")
+            assertThat(result).isEqualTo(ApiResult.Err(ApiFailure.Api(1, "Invalid credentials")))
             assertThat(apiClient.token).isEmpty()
         }
 
     @Test
-    fun `login should handle network error gracefully`() =
+    fun `login should return Http failure on server error`() =
         runTest {
             // Arrange
             val mockResponse =
@@ -111,7 +113,7 @@ class HomemoneyApiClientTest {
             val result = apiClient.login("testuser", "testpass", "5", "demo")
 
             // Assert
-            assertFalse(result, "Login should fail on network error")
+            assertThat(result).isEqualTo(ApiResult.Err(ApiFailure.Http(500)))
         }
 
     @Test
@@ -155,7 +157,7 @@ class HomemoneyApiClientTest {
             apiClient.token = "test-token"
 
             // Act
-            val result = apiClient.getAccountGroups()
+            val result = apiClient.getAccountGroups().expectOk()
 
             // Assert
             assertThat(result).hasSize(1)
@@ -238,7 +240,7 @@ class HomemoneyApiClientTest {
             apiClient.token = "test-token"
 
             // Act
-            val result = apiClient.getAccounts()
+            val result = apiClient.getAccounts().expectOk()
 
             // Assert
             assertThat(result).hasSize(3)
@@ -282,7 +284,7 @@ class HomemoneyApiClientTest {
             apiClient.token = "test-token"
 
             // Act
-            val result = apiClient.getCategories()
+            val result = apiClient.getCategories().expectOk()
 
             // Assert
             assertThat(result).hasSize(2)
@@ -336,7 +338,7 @@ class HomemoneyApiClientTest {
             apiClient.token = "test-token"
 
             // Act
-            val result = apiClient.getTransactions(10)
+            val result = apiClient.getTransactions(10).expectOk()
 
             // Assert
             assertThat(result).hasSize(1)
@@ -370,7 +372,7 @@ class HomemoneyApiClientTest {
             apiClient.token = "test-token"
 
             // Act
-            val result = apiClient.getTransactions(null)
+            val result = apiClient.getTransactions(null).expectOk()
 
             // Assert
             assertThat(result).isEmpty()
@@ -382,7 +384,7 @@ class HomemoneyApiClientTest {
         }
 
     @Test
-    fun `getCategories should throw when API returns error code on HTTP 200`() =
+    fun `getCategories should return Api failure when API returns error code on HTTP 200`() =
         runTest {
             // Arrange: HTTP 200 but API-level error in the Error envelope
             val mockResponse =
@@ -399,18 +401,13 @@ class HomemoneyApiClientTest {
             mockWebServer.enqueue(mockResponse)
             apiClient.token = "test-token"
 
-            // Act & Assert - the unified seam must surface both the API error code
-            // and the message in one interpretation
-            val exception =
-                assertThrows<Exception> {
-                    apiClient.getCategories()
-                }
-            assertThat(exception.message).contains("API error 5")
-            assertThat(exception.message).contains("Session expired")
+            // Act & Assert - the unified seam surfaces the API code + message as one typed case
+            val failure = apiClient.getCategories().expectErr()
+            assertThat(failure).isEqualTo(ApiFailure.Api(5, "Session expired"))
         }
 
     @Test
-    fun `handleResponse should throw exception on unsuccessful response`() =
+    fun `interpret should return Http failure on unsuccessful response`() =
         runTest {
             // Arrange
             val mockResponse =
@@ -421,11 +418,8 @@ class HomemoneyApiClientTest {
             apiClient.token = "test-token"
 
             // Act & Assert
-            val exception =
-                assertThrows<Exception> {
-                    apiClient.getCategories()
-                }
-            assertThat(exception.message).contains("404")
+            val failure = apiClient.getCategories().expectErr()
+            assertThat(failure).isEqualTo(ApiFailure.Http(404))
         }
 
     @Test
@@ -505,7 +499,7 @@ class HomemoneyApiClientTest {
             apiClient.token = "test-token"
 
             // Act
-            val result = apiClient.getAccounts()
+            val result = apiClient.getAccounts().expectOk()
 
             // Assert
             assertThat(result).isEmpty()
