@@ -12,6 +12,7 @@ import okhttp3.mockwebserver.MockWebServer
 import ru.levar.ApiFailure
 import ru.levar.ApiResult
 import ru.levar.HomemoneyApiClient
+import ru.levar.Session
 import ru.levar.testutils.TestDataFactory
 import ru.levar.testutils.enqueueError
 import ru.levar.testutils.enqueueSuccess
@@ -30,6 +31,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
 
     lateinit var mockWebServer: MockWebServer
     lateinit var apiClient: HomemoneyApiClient
+    lateinit var session: Session
 
     beforeTest {
         mockWebServer = MockWebServer()
@@ -43,23 +45,22 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
 
     describe("Authentication") {
 
-        it("should successfully login with valid credentials") {
+        it("should successfully authenticate with valid credentials") {
             runTest {
                 // Arrange
                 mockWebServer.enqueueSuccess(TestDataFactory.createSuccessfulAuthResponse())
 
                 // Act
                 val result =
-                    apiClient.login(
+                    apiClient.authenticate(
                         TestDataFactory.DEFAULT_USERNAME,
                         TestDataFactory.DEFAULT_PASSWORD,
                         TestDataFactory.DEFAULT_CLIENT_ID,
                         TestDataFactory.DEFAULT_CLIENT_SECRET,
                     )
 
-                // Assert
-                result shouldBe ApiResult.Ok(Unit)
-                apiClient.token shouldBe TestDataFactory.DEFAULT_TOKEN
+                // Assert - success yields a Session
+                result.expectOk()
 
                 // Verify request
                 val request = mockWebServer.takeRequest()
@@ -71,7 +72,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
             }
         }
 
-        it("should fail login with invalid credentials") {
+        it("should fail authentication with invalid credentials") {
             runTest {
                 // Arrange
                 mockWebServer.enqueueSuccess(
@@ -79,25 +80,23 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 )
 
                 // Act
-                val result = apiClient.login("wrong", "credentials", "5", "demo")
+                val result = apiClient.authenticate("wrong", "credentials", "5", "demo")
 
-                // Assert
+                // Assert - no Session; the typed cause is carried instead of a bare false
                 result shouldBe ApiResult.Err(ApiFailure.Api(401, "Invalid credentials"))
-                apiClient.token shouldBe ""
             }
         }
 
-        it("should handle HTTP error during login") {
+        it("should handle HTTP error during authentication") {
             runTest {
                 // Arrange
                 mockWebServer.enqueueError(500, "Internal Server Error")
 
                 // Act
-                val result = apiClient.login("user", "pass", "5", "demo")
+                val result = apiClient.authenticate("user", "pass", "5", "demo")
 
                 // Assert
                 result shouldBe ApiResult.Err(ApiFailure.Http(500))
-                apiClient.token shouldBe ""
             }
         }
     }
@@ -105,7 +104,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
     describe("Account Management") {
 
         beforeTest {
-            apiClient.token = TestDataFactory.DEFAULT_TOKEN
+            session = apiClient.sessionWith(TestDataFactory.DEFAULT_TOKEN)
         }
 
         it("should retrieve account groups") {
@@ -121,7 +120,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 )
 
                 // Act
-                val result = apiClient.getAccountGroups().expectOk()
+                val result = session.accountGroups().expectOk()
 
                 // Assert
                 result shouldHaveSize 1
@@ -142,7 +141,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 )
 
                 // Act
-                val accounts = apiClient.getAccounts().expectOk()
+                val accounts = session.accounts().expectOk()
 
                 // Assert
                 accounts shouldHaveSize 2
@@ -157,7 +156,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 mockWebServer.enqueueSuccess(TestDataFactory.createEmptyBalanceListResponse())
 
                 // Act
-                val accounts = apiClient.getAccounts().expectOk()
+                val accounts = session.accounts().expectOk()
 
                 // Assert
                 accounts.shouldBeEmpty()
@@ -168,7 +167,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
     describe("Category Operations") {
 
         beforeTest {
-            apiClient.token = TestDataFactory.DEFAULT_TOKEN
+            session = apiClient.sessionWith(TestDataFactory.DEFAULT_TOKEN)
         }
 
         it("should retrieve categories") {
@@ -192,7 +191,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 )
 
                 // Act
-                val result = apiClient.getCategories().expectOk()
+                val result = session.categories().expectOk()
 
                 // Assert
                 result shouldHaveSize 2
@@ -207,7 +206,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 mockWebServer.enqueueSuccess(TestDataFactory.createEmptyCategoryListResponse())
 
                 // Act
-                val result = apiClient.getCategories().expectOk()
+                val result = session.categories().expectOk()
 
                 // Assert
                 result.shouldBeEmpty()
@@ -218,7 +217,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
     describe("Transaction Operations") {
 
         beforeTest {
-            apiClient.token = TestDataFactory.DEFAULT_TOKEN
+            session = apiClient.sessionWith(TestDataFactory.DEFAULT_TOKEN)
         }
 
         it("should retrieve transactions with topCount parameter") {
@@ -236,7 +235,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 )
 
                 // Act
-                val result = apiClient.getTransactions(10).expectOk()
+                val result = session.transactions(10).expectOk()
 
                 // Assert
                 result shouldHaveSize 1
@@ -255,7 +254,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 mockWebServer.enqueueSuccess(TestDataFactory.createEmptyTransactionListResponse())
 
                 // Act
-                val result = apiClient.getTransactions(null).expectOk()
+                val result = session.transactions(null).expectOk()
 
                 // Assert
                 result.shouldBeEmpty()
@@ -270,7 +269,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
     describe("Error Handling") {
 
         beforeTest {
-            apiClient.token = TestDataFactory.DEFAULT_TOKEN
+            session = apiClient.sessionWith(TestDataFactory.DEFAULT_TOKEN)
         }
 
         it("should return Http failure on 404 Not Found") {
@@ -279,7 +278,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 mockWebServer.enqueueError(404, "Not Found")
 
                 // Act & Assert
-                apiClient.getCategories().expectErr() shouldBe ApiFailure.Http(404)
+                session.categories().expectErr() shouldBe ApiFailure.Http(404)
             }
         }
 
@@ -289,7 +288,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 mockWebServer.enqueueError(401, "Unauthorized")
 
                 // Act & Assert
-                apiClient.getCategories().expectErr() shouldBe ApiFailure.Http(401)
+                session.categories().expectErr() shouldBe ApiFailure.Http(401)
             }
         }
 
@@ -299,7 +298,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 mockWebServer.enqueueError(500, "Internal Server Error")
 
                 // Act & Assert
-                apiClient.getCategories().expectErr() shouldBe ApiFailure.Http(500)
+                session.categories().expectErr() shouldBe ApiFailure.Http(500)
             }
         }
 
@@ -316,7 +315,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 )
 
                 // Act & Assert - uniform interpretation surfaces code + message as one typed case
-                apiClient.getTransactions(10).expectErr() shouldBe ApiFailure.Api(7, "Token expired")
+                session.transactions(10).expectErr() shouldBe ApiFailure.Api(7, "Token expired")
             }
         }
 
@@ -335,18 +334,14 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 )
 
                 // Act & Assert - uniform interpretation surfaces code + message as one typed case
-                apiClient.getAccountGroups().expectErr() shouldBe ApiFailure.Api(7, "Token expired")
+                session.accountGroups().expectErr() shouldBe ApiFailure.Api(7, "Token expired")
             }
         }
     }
 
-    describe("Token Management") {
+    describe("Session lifecycle") {
 
-        it("should have empty token initially") {
-            apiClient.token shouldBe ""
-        }
-
-        it("should store token after successful login") {
+        it("should yield a Session on successful authentication") {
             runTest {
                 // Arrange
                 mockWebServer.enqueueSuccess(
@@ -357,23 +352,23 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 )
 
                 // Act
-                apiClient.login("user", "pass", "5", "demo")
+                val result = apiClient.authenticate("user", "pass", "5", "demo")
 
-                // Assert
-                apiClient.token shouldBe "new-access-token"
+                // Assert - authentication concentrates auth state in the returned Session
+                result.expectOk()
             }
         }
 
-        it("should not store token after failed login") {
+        it("should yield no Session on failed authentication") {
             runTest {
                 // Arrange
                 mockWebServer.enqueueSuccess(TestDataFactory.createFailedAuthResponse())
 
                 // Act
-                apiClient.login("user", "pass", "5", "demo")
+                val result = apiClient.authenticate("user", "pass", "5", "demo")
 
-                // Assert
-                apiClient.token shouldBe ""
+                // Assert - a failed auth produces an Err, not a usable handle
+                result.expectErr()
             }
         }
     }
