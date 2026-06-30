@@ -1,31 +1,22 @@
 package ru.levar
 
-import com.google.gson.JsonParseException
-import com.google.gson.stream.MalformedJsonException
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
-import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import ru.levar.api.HomemoneyApiService
-import ru.levar.api.dto.ApiEnvelope
-import ru.levar.domain.Account
-import ru.levar.domain.AccountGroup
-import ru.levar.domain.Category
-import ru.levar.domain.Transaction
-import java.io.EOFException
 import java.util.concurrent.TimeUnit
 
+/**
+ * Entry point to the iHomemoney API.
+ *
+ * The client is unauthenticated: its only operation is [authenticate], which exchanges
+ * credentials for a [Session]. Authenticated operations live on [Session], so they are
+ * unreachable without first authenticating — the "log in first" invariant is enforced by
+ * the type system rather than by a runtime guard repeated in every method.
+ */
 class HomemoneyApiClient(baseUrl: String = AppConfig.serviceUri) {
     private val apiService: HomemoneyApiService
-    private var _token: String = ""
-
-    var token: String
-        get() = _token
-        set(value) {
-            require(value.isNotBlank()) { "Token cannot be blank" }
-            _token = value
-        }
 
     init {
         val loggingInterceptor =
@@ -51,100 +42,28 @@ class HomemoneyApiClient(baseUrl: String = AppConfig.serviceUri) {
         apiService = retrofit.create(HomemoneyApiService::class.java)
     }
 
-    suspend fun login(
+    /**
+     * Exchanges credentials for an authenticated [Session].
+     *
+     * Returns the same typed seam as every other call: an [ApiResult.Err] carries *why*
+     * authentication failed (wrong password vs. server error vs. malformed body) instead of
+     * collapsing every cause into a bare `false`.
+     */
+    suspend fun authenticate(
         login: String,
         password: String,
         clientId: String,
         clientSecret: String,
-    ): ApiResult<Unit> =
-        when (val result = interpret { apiService.login(login, password, clientId, clientSecret) }) {
-            is ApiResult.Ok -> {
-                token = result.value.token
-                ApiResult.Ok(Unit)
-            }
-            is ApiResult.Err -> result
-        }
-
-    private fun requireAuthentication() {
-        require(_token.isNotBlank()) { "Authentication required. Call login() first." }
-    }
-
-    suspend fun getAccountGroups(): ApiResult<List<AccountGroup>> {
-        requireAuthentication()
-        return interpret { apiService.getAccountGroups(token) }.map { it.listAccountGroupInfo }
-    }
-
-    suspend fun getAccounts(): ApiResult<List<Account>> = getAccountGroups().map { groups -> groups.flatMap { it.listAccountInfo } }
-
-    suspend fun getCategories(): ApiResult<List<Category>> {
-        requireAuthentication()
-        return interpret { apiService.getCategories(token) }.map { it.listCategory }
-    }
-
-    suspend fun getTransactions(topCount: Int?): ApiResult<List<Transaction>> {
-        requireAuthentication()
-        return interpret { apiService.getTransactions(token, topCount) }.map { it.listTransaction }
-    }
-
-//    suspend fun getTransactions(
-//        startDate: String? = null,
-//        endDate: String? = null,
-//        accountId: String? = null,
-//        categoryId: String? = null,
-//        page: Int? = null,
-//        pageSize: Int? = null
-//    ): List<Transaction> {
-//        val response = apiService.getTransactions(
-//            token,
-//            startDate,
-//            endDate,
-//            accountId,
-//            categoryId,
-//            page,
-//            pageSize
-//        )
-//        return handleResponse(response)
-//    }
-
-//    suspend fun createTransaction(transaction: Transaction): String {
-//        val response = apiService.createTransaction(token, transaction)
-//        return handleResponse(response)
-//    }
-
-//    suspend fun getCurrencies(): List<Currency> {
-//        val response = apiService.getCurrencies(token)
-//        return handleResponse(response)
-//    }
+    ): ApiResult<Session> =
+        interpret { apiService.login(login, password, clientId, clientSecret) }
+            .map { Session(apiService, it.token) }
 
     /**
-     * The single point where a raw HTTP response is interpreted into an [ApiResult].
+     * Builds a [Session] for a known token without a network round-trip.
      *
-     * Every failure mode is decided here once: a non-2xx status, a null/empty body,
-     * an API-level error on HTTP 200, and a Gson parse failure (including the empty-body
-     * "End of input"). Transport errors (e.g. connection refused/timeout) are not modelled
-     * by [ApiFailure] and propagate as thrown exceptions.
+     * Module-internal test seam: it lets authenticated-call tests exercise [Session] directly
+     * while keeping the public surface honest — library consumers can still only obtain a
+     * [Session] through [authenticate].
      */
-    private suspend fun <T : ApiEnvelope> interpret(call: suspend () -> Response<T>): ApiResult<T> {
-        val response =
-            try {
-                call()
-            } catch (e: Exception) {
-                if (e is JsonParseException || e is MalformedJsonException || e is EOFException) {
-                    return ApiResult.Err(ApiFailure.Malformed(e))
-                }
-                throw e
-            }
-
-        if (!response.isSuccessful) {
-            return ApiResult.Err(ApiFailure.Http(response.code()))
-        }
-
-        val body = response.body() ?: return ApiResult.Err(ApiFailure.EmptyBody)
-
-        if (body.error.code != 0) {
-            return ApiResult.Err(ApiFailure.Api(body.error.code, body.error.message))
-        }
-
-        return ApiResult.Ok(body)
-    }
+    internal fun sessionWith(token: String): Session = Session(apiService, token)
 }

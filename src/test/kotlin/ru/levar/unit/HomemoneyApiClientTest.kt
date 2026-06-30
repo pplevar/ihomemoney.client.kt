@@ -7,7 +7,6 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import ru.levar.ApiFailure
 import ru.levar.ApiResult
 import ru.levar.HomemoneyApiClient
@@ -40,7 +39,48 @@ class HomemoneyApiClientTest {
     }
 
     @Test
-    fun `login should succeed with valid credentials`() =
+    fun `authenticate should yield a Session that fetches data with the issued token`() =
+        runTest {
+            // Arrange - login issues a token, then a data response for the Session call
+            mockWebServer.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .setBody(
+                        """
+                        {
+                            "Error": {"code": 0, "message": ""},
+                            "access_token": "session-token",
+                            "refresh_token": "refresh"
+                        }
+                        """.trimIndent(),
+                    ),
+            )
+            mockWebServer.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .setBody(
+                        """
+                        {
+                            "ListCategory": [],
+                            "Error": {"code": 0, "message": ""}
+                        }
+                        """.trimIndent(),
+                    ),
+            )
+
+            // Act - obtain a Session, then reach a data call only through it
+            val session = apiClient.authenticate("testuser", "testpass", "5", "demo").expectOk()
+            session.categories().expectOk()
+
+            // Assert - the data request carried the token issued by authenticate
+            mockWebServer.takeRequest() // login request
+            val dataRequest = mockWebServer.takeRequest()
+            assertThat(dataRequest.path).contains("CategoryList")
+            assertThat(dataRequest.path).contains("Token=session-token")
+        }
+
+    @Test
+    fun `authenticate should send credentials and succeed with valid login`() =
         runTest {
             // Arrange
             val mockResponse =
@@ -58,11 +98,10 @@ class HomemoneyApiClientTest {
             mockWebServer.enqueue(mockResponse)
 
             // Act
-            val result = apiClient.login("testuser", "testpass", "5", "demo")
+            val result = apiClient.authenticate("testuser", "testpass", "5", "demo")
 
-            // Assert
-            assertThat(result).isEqualTo(ApiResult.Ok(Unit))
-            assertThat(apiClient.token).isEqualTo("test-token-123")
+            // Assert - success yields a Session (not a bare boolean)
+            assertThat(result).isInstanceOf(ApiResult.Ok::class.java)
 
             // Verify request was made correctly
             val request = mockWebServer.takeRequest()
@@ -74,7 +113,7 @@ class HomemoneyApiClientTest {
         }
 
     @Test
-    fun `login should fail with invalid credentials`() =
+    fun `authenticate should fail with the API cause on invalid credentials`() =
         runTest {
             // Arrange
             val mockResponse =
@@ -92,15 +131,14 @@ class HomemoneyApiClientTest {
             mockWebServer.enqueue(mockResponse)
 
             // Act
-            val result = apiClient.login("wronguser", "wrongpass", "5", "demo")
+            val result = apiClient.authenticate("wronguser", "wrongpass", "5", "demo")
 
-            // Assert
+            // Assert - the failure carries why, instead of collapsing to false
             assertThat(result).isEqualTo(ApiResult.Err(ApiFailure.Api(1, "Invalid credentials")))
-            assertThat(apiClient.token).isEmpty()
         }
 
     @Test
-    fun `login should return Http failure on server error`() =
+    fun `authenticate should return Http failure on server error`() =
         runTest {
             // Arrange
             val mockResponse =
@@ -110,7 +148,7 @@ class HomemoneyApiClientTest {
             mockWebServer.enqueue(mockResponse)
 
             // Act
-            val result = apiClient.login("testuser", "testpass", "5", "demo")
+            val result = apiClient.authenticate("testuser", "testpass", "5", "demo")
 
             // Assert
             assertThat(result).isEqualTo(ApiResult.Err(ApiFailure.Http(500)))
@@ -154,10 +192,10 @@ class HomemoneyApiClientTest {
                         """.trimIndent(),
                     )
             mockWebServer.enqueue(mockResponse)
-            apiClient.token = "test-token"
+            val session = apiClient.sessionWith("test-token")
 
             // Act
-            val result = apiClient.getAccountGroups().expectOk()
+            val result = session.accountGroups().expectOk()
 
             // Assert
             assertThat(result).hasSize(1)
@@ -237,10 +275,10 @@ class HomemoneyApiClientTest {
                         """.trimIndent(),
                     )
             mockWebServer.enqueue(mockResponse)
-            apiClient.token = "test-token"
+            val session = apiClient.sessionWith("test-token")
 
             // Act
-            val result = apiClient.getAccounts().expectOk()
+            val result = session.accounts().expectOk()
 
             // Assert
             assertThat(result).hasSize(3)
@@ -281,10 +319,10 @@ class HomemoneyApiClientTest {
                         """.trimIndent(),
                     )
             mockWebServer.enqueue(mockResponse)
-            apiClient.token = "test-token"
+            val session = apiClient.sessionWith("test-token")
 
             // Act
-            val result = apiClient.getCategories().expectOk()
+            val result = session.categories().expectOk()
 
             // Assert
             assertThat(result).hasSize(2)
@@ -335,10 +373,10 @@ class HomemoneyApiClientTest {
                         """.trimIndent(),
                     )
             mockWebServer.enqueue(mockResponse)
-            apiClient.token = "test-token"
+            val session = apiClient.sessionWith("test-token")
 
             // Act
-            val result = apiClient.getTransactions(10).expectOk()
+            val result = session.transactions(10).expectOk()
 
             // Assert
             assertThat(result).hasSize(1)
@@ -369,10 +407,10 @@ class HomemoneyApiClientTest {
                         """.trimIndent(),
                     )
             mockWebServer.enqueue(mockResponse)
-            apiClient.token = "test-token"
+            val session = apiClient.sessionWith("test-token")
 
             // Act
-            val result = apiClient.getTransactions(null).expectOk()
+            val result = session.transactions(null).expectOk()
 
             // Assert
             assertThat(result).isEmpty()
@@ -399,10 +437,10 @@ class HomemoneyApiClientTest {
                         """.trimIndent(),
                     )
             mockWebServer.enqueue(mockResponse)
-            apiClient.token = "test-token"
+            val session = apiClient.sessionWith("test-token")
 
             // Act & Assert - the unified seam surfaces the API code + message as one typed case
-            val failure = apiClient.getCategories().expectErr()
+            val failure = session.categories().expectErr()
             assertThat(failure).isEqualTo(ApiFailure.Api(5, "Session expired"))
         }
 
@@ -415,68 +453,12 @@ class HomemoneyApiClientTest {
                     .setResponseCode(404)
                     .setBody("Not Found")
             mockWebServer.enqueue(mockResponse)
-            apiClient.token = "test-token"
+            val session = apiClient.sessionWith("test-token")
 
             // Act & Assert
-            val failure = apiClient.getCategories().expectErr()
+            val failure = session.categories().expectErr()
             assertThat(failure).isEqualTo(ApiFailure.Http(404))
         }
-
-    @Test
-    fun `token should be empty initially`() {
-        // Assert
-        assertThat(apiClient.token).isEmpty()
-    }
-
-    @Test
-    fun `token should be set after successful login`() =
-        runTest {
-            // Arrange
-            val mockResponse =
-                MockResponse()
-                    .setResponseCode(200)
-                    .setBody(
-                        """
-                        {
-                            "Error": {"code": 0, "message": ""},
-                            "access_token": "new-token",
-                            "refresh_token": "new-refresh"
-                        }
-                        """.trimIndent(),
-                    )
-            mockWebServer.enqueue(mockResponse)
-
-            // Act
-            apiClient.login("user", "pass", "5", "demo")
-
-            // Assert
-            assertThat(apiClient.token).isEqualTo("new-token")
-        }
-
-    @Test
-    fun `token setter should reject blank values`() {
-        // Act & Assert
-        val exception =
-            assertThrows<IllegalArgumentException> {
-                apiClient.token = ""
-            }
-        assertThat(exception.message).contains("Token cannot be blank")
-
-        val exception2 =
-            assertThrows<IllegalArgumentException> {
-                apiClient.token = "   "
-            }
-        assertThat(exception2.message).contains("Token cannot be blank")
-    }
-
-    @Test
-    fun `token setter should accept valid values`() {
-        // Act
-        apiClient.token = "valid-token-123"
-
-        // Assert
-        assertThat(apiClient.token).isEqualTo("valid-token-123")
-    }
 
     @Test
     fun `should handle empty account groups`() =
@@ -496,10 +478,10 @@ class HomemoneyApiClientTest {
                         """.trimIndent(),
                     )
             mockWebServer.enqueue(mockResponse)
-            apiClient.token = "test-token"
+            val session = apiClient.sessionWith("test-token")
 
             // Act
-            val result = apiClient.getAccounts().expectOk()
+            val result = session.accounts().expectOk()
 
             // Assert
             assertThat(result).isEmpty()

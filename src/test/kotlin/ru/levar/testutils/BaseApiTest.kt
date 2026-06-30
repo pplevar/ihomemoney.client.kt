@@ -4,6 +4,7 @@ import okhttp3.mockwebserver.MockWebServer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import ru.levar.HomemoneyApiClient
+import ru.levar.Session
 
 /**
  * Base test class providing common setup for API tests
@@ -33,11 +34,11 @@ abstract class BaseApiTest {
     }
 
     /**
-     * Helper to set token on API client for authenticated requests
+     * Helper to obtain an authenticated [Session] for a known token without a network
+     * round-trip, so authenticated-call tests can fetch data through the type that carries
+     * the "log in first" invariant.
      */
-    protected fun authenticateClient(token: String = TestDataFactory.DEFAULT_TOKEN) {
-        apiClient.token = token
-    }
+    protected fun authenticatedSession(token: String = TestDataFactory.DEFAULT_TOKEN): Session = apiClient.sessionWith(token)
 
     /**
      * Helper to enqueue a successful login response

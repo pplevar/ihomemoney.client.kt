@@ -146,16 +146,13 @@ class ApiIntegrationTest {
                     ),
             )
 
-            // Act - Execute complete workflow
-            val loginResult = apiClient.login("user", "pass", "5", "demo")
-            val accounts = apiClient.getAccounts().expectOk()
-            val categories = apiClient.getCategories().expectOk()
-            val transactions = apiClient.getTransactions(10).expectOk()
+            // Act - Execute complete workflow: authenticate first, then fetch through the Session
+            val session = apiClient.authenticate("user", "pass", "5", "demo").expectOk()
+            val accounts = session.accounts().expectOk()
+            val categories = session.categories().expectOk()
+            val transactions = session.transactions(10).expectOk()
 
             // Assert
-            assertThat(loginResult).isEqualTo(ApiResult.Ok(Unit))
-            assertThat(apiClient.token).isEqualTo("workflow-token")
-
             assertThat(accounts).hasSize(1)
             assertThat(accounts[0].name).isEqualTo("Cash")
 
@@ -188,11 +185,10 @@ class ApiIntegrationTest {
             )
 
             // Act
-            val loginResult = apiClient.login("baduser", "badpass", "5", "demo")
+            val authResult = apiClient.authenticate("baduser", "badpass", "5", "demo")
 
-            // Assert
-            assertThat(loginResult).isEqualTo(ApiResult.Err(ApiFailure.Api(401, "Invalid credentials")))
-            assertThat(apiClient.token).isEmpty()
+            // Assert - no Session is produced; the typed cause crosses the seam
+            assertThat(authResult).isEqualTo(ApiResult.Err(ApiFailure.Api(401, "Invalid credentials")))
             assertThat(mockWebServer.requestCount).isEqualTo(1)
         }
 
@@ -222,10 +218,9 @@ class ApiIntegrationTest {
             )
 
             // Act & Assert
-            val loginResult = apiClient.login("user", "pass", "5", "demo")
-            assertThat(loginResult).isEqualTo(ApiResult.Ok(Unit))
+            val session = apiClient.authenticate("user", "pass", "5", "demo").expectOk()
 
-            val failure = apiClient.getAccounts().expectErr()
+            val failure = session.accounts().expectErr()
             assertThat(failure).isEqualTo(ApiFailure.Http(500))
         }
 
@@ -264,10 +259,10 @@ class ApiIntegrationTest {
             }
 
             // Act
-            apiClient.login("user", "pass", "5", "demo")
-            apiClient.getCategories()
-            apiClient.getCategories()
-            apiClient.getCategories()
+            val session = apiClient.authenticate("user", "pass", "5", "demo").expectOk()
+            session.categories()
+            session.categories()
+            session.categories()
 
             // Assert - All requests should use same token
             mockWebServer.takeRequest() // Skip login request
@@ -343,10 +338,10 @@ class ApiIntegrationTest {
             )
 
             // Act
-            apiClient.login("user", "pass", "5", "demo")
-            val accounts = apiClient.getAccounts().expectOk()
-            val categories = apiClient.getCategories().expectOk()
-            val transactions = apiClient.getTransactions(10).expectOk()
+            val session = apiClient.authenticate("user", "pass", "5", "demo").expectOk()
+            val accounts = session.accounts().expectOk()
+            val categories = session.categories().expectOk()
+            val transactions = session.transactions(10).expectOk()
 
             // Assert - Should handle empty lists gracefully
             assertThat(accounts).isEmpty()
@@ -438,8 +433,8 @@ class ApiIntegrationTest {
             )
 
             // Act
-            apiClient.login("user", "pass", "5", "demo")
-            val accounts = apiClient.getAccounts().expectOk()
+            val session = apiClient.authenticate("user", "pass", "5", "demo").expectOk()
+            val accounts = session.accounts().expectOk()
 
             // Assert - Should flatten all accounts from all groups
             assertThat(accounts).hasSize(3)
@@ -499,8 +494,8 @@ class ApiIntegrationTest {
             )
 
             // Act
-            apiClient.login("user", "pass", "5", "demo")
-            val transactions = apiClient.getTransactions(5).expectOk()
+            val session = apiClient.authenticate("user", "pass", "5", "demo").expectOk()
+            val transactions = session.transactions(5).expectOk()
 
             // Assert
             assertThat(transactions).hasSize(1)
