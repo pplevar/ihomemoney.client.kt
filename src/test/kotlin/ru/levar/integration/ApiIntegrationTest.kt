@@ -7,7 +7,11 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import ru.levar.ApiFailure
+import ru.levar.ApiResult
 import ru.levar.HomemoneyApiClient
+import ru.levar.testutils.expectErr
+import ru.levar.testutils.expectOk
 
 /**
  * Integration tests simulating full user workflows
@@ -143,13 +147,13 @@ class ApiIntegrationTest {
             )
 
             // Act - Execute complete workflow
-            val loginSuccess = apiClient.login("user", "pass", "5", "demo")
-            val accounts = apiClient.getAccounts()
-            val categories = apiClient.getCategories()
-            val transactions = apiClient.getTransactions(10)
+            val loginResult = apiClient.login("user", "pass", "5", "demo")
+            val accounts = apiClient.getAccounts().expectOk()
+            val categories = apiClient.getCategories().expectOk()
+            val transactions = apiClient.getTransactions(10).expectOk()
 
             // Assert
-            assertThat(loginSuccess).isTrue()
+            assertThat(loginResult).isEqualTo(ApiResult.Ok(Unit))
             assertThat(apiClient.token).isEqualTo("workflow-token")
 
             assertThat(accounts).hasSize(1)
@@ -184,10 +188,10 @@ class ApiIntegrationTest {
             )
 
             // Act
-            val loginSuccess = apiClient.login("baduser", "badpass", "5", "demo")
+            val loginResult = apiClient.login("baduser", "badpass", "5", "demo")
 
             // Assert
-            assertThat(loginSuccess).isFalse()
+            assertThat(loginResult).isEqualTo(ApiResult.Err(ApiFailure.Api(401, "Invalid credentials")))
             assertThat(apiClient.token).isEmpty()
             assertThat(mockWebServer.requestCount).isEqualTo(1)
         }
@@ -218,15 +222,11 @@ class ApiIntegrationTest {
             )
 
             // Act & Assert
-            val loginSuccess = apiClient.login("user", "pass", "5", "demo")
-            assertThat(loginSuccess).isTrue()
+            val loginResult = apiClient.login("user", "pass", "5", "demo")
+            assertThat(loginResult).isEqualTo(ApiResult.Ok(Unit))
 
-            try {
-                apiClient.getAccounts()
-                // Should throw exception
-            } catch (e: Exception) {
-                assertThat(e.message).contains("500")
-            }
+            val failure = apiClient.getAccounts().expectErr()
+            assertThat(failure).isEqualTo(ApiFailure.Http(500))
         }
 
     @Test
@@ -344,9 +344,9 @@ class ApiIntegrationTest {
 
             // Act
             apiClient.login("user", "pass", "5", "demo")
-            val accounts = apiClient.getAccounts()
-            val categories = apiClient.getCategories()
-            val transactions = apiClient.getTransactions(10)
+            val accounts = apiClient.getAccounts().expectOk()
+            val categories = apiClient.getCategories().expectOk()
+            val transactions = apiClient.getTransactions(10).expectOk()
 
             // Assert - Should handle empty lists gracefully
             assertThat(accounts).isEmpty()
@@ -439,7 +439,7 @@ class ApiIntegrationTest {
 
             // Act
             apiClient.login("user", "pass", "5", "demo")
-            val accounts = apiClient.getAccounts()
+            val accounts = apiClient.getAccounts().expectOk()
 
             // Assert - Should flatten all accounts from all groups
             assertThat(accounts).hasSize(3)
@@ -500,7 +500,7 @@ class ApiIntegrationTest {
 
             // Act
             apiClient.login("user", "pass", "5", "demo")
-            val transactions = apiClient.getTransactions(5)
+            val transactions = apiClient.getTransactions(5).expectOk()
 
             // Assert
             assertThat(transactions).hasSize(1)

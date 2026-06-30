@@ -1,6 +1,5 @@
 package ru.levar.unit
 
-import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContain
@@ -10,10 +9,14 @@ import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockWebServer
+import ru.levar.ApiFailure
+import ru.levar.ApiResult
 import ru.levar.HomemoneyApiClient
 import ru.levar.testutils.TestDataFactory
 import ru.levar.testutils.enqueueError
 import ru.levar.testutils.enqueueSuccess
+import ru.levar.testutils.expectErr
+import ru.levar.testutils.expectOk
 import ru.levar.testutils.verifyPath
 import ru.levar.testutils.verifyQueryParam
 
@@ -55,7 +58,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                     )
 
                 // Assert
-                result shouldBe true
+                result shouldBe ApiResult.Ok(Unit)
                 apiClient.token shouldBe TestDataFactory.DEFAULT_TOKEN
 
                 // Verify request
@@ -79,7 +82,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 val result = apiClient.login("wrong", "credentials", "5", "demo")
 
                 // Assert
-                result shouldBe false
+                result shouldBe ApiResult.Err(ApiFailure.Api(401, "Invalid credentials"))
                 apiClient.token shouldBe ""
             }
         }
@@ -93,7 +96,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 val result = apiClient.login("user", "pass", "5", "demo")
 
                 // Assert
-                result shouldBe false
+                result shouldBe ApiResult.Err(ApiFailure.Http(500))
                 apiClient.token shouldBe ""
             }
         }
@@ -118,7 +121,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 )
 
                 // Act
-                val result = apiClient.getAccountGroups()
+                val result = apiClient.getAccountGroups().expectOk()
 
                 // Assert
                 result shouldHaveSize 1
@@ -139,7 +142,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 )
 
                 // Act
-                val accounts = apiClient.getAccounts()
+                val accounts = apiClient.getAccounts().expectOk()
 
                 // Assert
                 accounts shouldHaveSize 2
@@ -154,7 +157,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 mockWebServer.enqueueSuccess(TestDataFactory.createEmptyBalanceListResponse())
 
                 // Act
-                val accounts = apiClient.getAccounts()
+                val accounts = apiClient.getAccounts().expectOk()
 
                 // Assert
                 accounts.shouldBeEmpty()
@@ -189,7 +192,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 )
 
                 // Act
-                val result = apiClient.getCategories()
+                val result = apiClient.getCategories().expectOk()
 
                 // Assert
                 result shouldHaveSize 2
@@ -204,7 +207,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 mockWebServer.enqueueSuccess(TestDataFactory.createEmptyCategoryListResponse())
 
                 // Act
-                val result = apiClient.getCategories()
+                val result = apiClient.getCategories().expectOk()
 
                 // Assert
                 result.shouldBeEmpty()
@@ -233,7 +236,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 )
 
                 // Act
-                val result = apiClient.getTransactions(10)
+                val result = apiClient.getTransactions(10).expectOk()
 
                 // Assert
                 result shouldHaveSize 1
@@ -252,7 +255,7 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                 mockWebServer.enqueueSuccess(TestDataFactory.createEmptyTransactionListResponse())
 
                 // Act
-                val result = apiClient.getTransactions(null)
+                val result = apiClient.getTransactions(null).expectOk()
 
                 // Assert
                 result.shouldBeEmpty()
@@ -270,49 +273,37 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
             apiClient.token = TestDataFactory.DEFAULT_TOKEN
         }
 
-        it("should throw exception on 404 Not Found") {
+        it("should return Http failure on 404 Not Found") {
             runTest {
                 // Arrange
                 mockWebServer.enqueueError(404, "Not Found")
 
                 // Act & Assert
-                val exception =
-                    shouldThrow<Exception> {
-                        apiClient.getCategories()
-                    }
-                exception.message shouldContain "404"
+                apiClient.getCategories().expectErr() shouldBe ApiFailure.Http(404)
             }
         }
 
-        it("should throw exception on 401 Unauthorized") {
+        it("should return Http failure on 401 Unauthorized") {
             runTest {
                 // Arrange
                 mockWebServer.enqueueError(401, "Unauthorized")
 
                 // Act & Assert
-                val exception =
-                    shouldThrow<Exception> {
-                        apiClient.getCategories()
-                    }
-                exception.message shouldContain "401"
+                apiClient.getCategories().expectErr() shouldBe ApiFailure.Http(401)
             }
         }
 
-        it("should throw exception on 500 Internal Server Error") {
+        it("should return Http failure on 500 Internal Server Error") {
             runTest {
                 // Arrange
                 mockWebServer.enqueueError(500, "Internal Server Error")
 
                 // Act & Assert
-                val exception =
-                    shouldThrow<Exception> {
-                        apiClient.getCategories()
-                    }
-                exception.message shouldContain "500"
+                apiClient.getCategories().expectErr() shouldBe ApiFailure.Http(500)
             }
         }
 
-        it("should throw when getTransactions returns API error on HTTP 200") {
+        it("should return Api failure when getTransactions returns API error on HTTP 200") {
             runTest {
                 // Arrange: HTTP 200 with a non-zero API error code
                 mockWebServer.enqueueSuccess(
@@ -324,17 +315,12 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                     """.trimIndent(),
                 )
 
-                // Act & Assert - uniform interpretation surfaces code + message
-                val exception =
-                    shouldThrow<Exception> {
-                        apiClient.getTransactions(10)
-                    }
-                exception.message shouldContain "API error 7"
-                exception.message shouldContain "Token expired"
+                // Act & Assert - uniform interpretation surfaces code + message as one typed case
+                apiClient.getTransactions(10).expectErr() shouldBe ApiFailure.Api(7, "Token expired")
             }
         }
 
-        it("should throw when getAccountGroups returns API error on HTTP 200") {
+        it("should return Api failure when getAccountGroups returns API error on HTTP 200") {
             runTest {
                 // Arrange: HTTP 200 with a non-zero API error code
                 mockWebServer.enqueueSuccess(
@@ -348,13 +334,8 @@ class HomemoneyApiClientEnhancedTest : DescribeSpec({
                     """.trimIndent(),
                 )
 
-                // Act & Assert - uniform interpretation surfaces code + message
-                val exception =
-                    shouldThrow<Exception> {
-                        apiClient.getAccountGroups()
-                    }
-                exception.message shouldContain "API error 7"
-                exception.message shouldContain "Token expired"
+                // Act & Assert - uniform interpretation surfaces code + message as one typed case
+                apiClient.getAccountGroups().expectErr() shouldBe ApiFailure.Api(7, "Token expired")
             }
         }
     }

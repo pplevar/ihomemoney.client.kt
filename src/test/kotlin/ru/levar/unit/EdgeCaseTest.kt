@@ -9,9 +9,13 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import ru.levar.ApiFailure
+import ru.levar.ApiResult
 import ru.levar.HomemoneyApiClient
 import ru.levar.domain.Category
 import ru.levar.domain.Transaction
+import ru.levar.testutils.expectErr
+import ru.levar.testutils.expectOk
 import java.util.concurrent.TimeUnit
 
 /**
@@ -46,20 +50,19 @@ class EdgeCaseTest {
             )
             apiClient.token = "token"
 
-            // Act & Assert
-            assertThrows<Exception> {
-                apiClient.getCategories()
-            }
+            // Act & Assert - an unparseable body surfaces as the Malformed case
+            val failure = apiClient.getCategories().expectErr()
+            assertThat(failure).isInstanceOf(ApiFailure.Malformed::class.java)
         }
 
     @Test
-    fun `should handle empty response body`() =
+    fun `should return Malformed when response body is empty`() =
         runTest {
             // Arrange - HTTP 200 with a literal empty body.
             // NOTE: Gson's converter rejects empty input ("End of input ...") before the
-            // client's own null-body guard can run, so an empty body surfaces as a parse
-            // error rather than the seam's "empty response body" message. This test pins
-            // that actual behavior so a future converter/seam change is caught.
+            // client's own null-body guard can run, so an empty body surfaces as the
+            // Malformed case (carrying the parse cause) rather than EmptyBody. This test
+            // pins that actual behavior so a future converter/seam change is caught.
             mockWebServer.enqueue(
                 MockResponse()
                     .setResponseCode(200)
@@ -68,15 +71,13 @@ class EdgeCaseTest {
             apiClient.token = "token"
 
             // Act & Assert
-            val exception =
-                assertThrows<Exception> {
-                    apiClient.getCategories()
-                }
-            assertThat(exception.message).contains("End of input")
+            val failure = apiClient.getCategories().expectErr()
+            assertThat(failure).isInstanceOf(ApiFailure.Malformed::class.java)
+            assertThat((failure as ApiFailure.Malformed).cause.message).contains("End of input")
         }
 
     @Test
-    fun `should throw empty response body when body deserializes to null`() =
+    fun `should return EmptyBody when body deserializes to null`() =
         runTest {
             // Arrange - HTTP 204 No Content: Retrofit returns a successful response
             // with a null body without invoking the Gson converter. This is the path
@@ -87,12 +88,9 @@ class EdgeCaseTest {
             )
             apiClient.token = "token"
 
-            // Act & Assert - seam interprets the null body as the empty-body branch
-            val exception =
-                assertThrows<Exception> {
-                    apiClient.getCategories()
-                }
-            assertThat(exception.message).contains("empty response body")
+            // Act & Assert - seam interprets the null body as the EmptyBody case
+            val failure = apiClient.getCategories().expectErr()
+            assertThat(failure).isEqualTo(ApiFailure.EmptyBody)
         }
 
 //     @Test
@@ -112,16 +110,16 @@ class EdgeCaseTest {
 //     }
 
     @Test
-    fun `should handle connection refused`() =
+    fun `should propagate transport error on connection refused`() =
         runTest {
             // Arrange - Shutdown server to simulate connection refused
             mockWebServer.shutdown()
 
-            // Act - login catches exceptions and returns false
-            val result = apiClient.login("user", "pass", "5", "demo")
-
-            // Assert - Should return false on connection error
-            assertThat(result).isFalse()
+            // Act & Assert - transport failures are not modelled by ApiFailure, so they
+            // propagate as thrown exceptions rather than crossing the typed seam.
+            assertThrows<Exception> {
+                apiClient.login("user", "pass", "5", "demo")
+            }
             assertThat(apiClient.token).isEmpty()
         }
 
@@ -148,7 +146,7 @@ class EdgeCaseTest {
             val result = apiClient.login("user", "pass", "5", "demo")
 
             // Assert - Should succeed despite delay
-            assertThat(result).isTrue()
+            assertThat(result).isEqualTo(ApiResult.Ok(Unit))
             assertThat(apiClient.token).isEqualTo("delayed-token")
         }
 
@@ -176,7 +174,7 @@ class EdgeCaseTest {
             val result = apiClient.login(specialUsername, specialPassword, "5", "demo")
 
             // Assert
-            assertThat(result).isTrue()
+            assertThat(result).isEqualTo(ApiResult.Ok(Unit))
 
             val request = mockWebServer.takeRequest()
             // URL encoding should handle special characters
@@ -228,7 +226,7 @@ class EdgeCaseTest {
             apiClient.token = "token"
 
             // Act
-            val result = apiClient.getTransactions(null)
+            val result = apiClient.getTransactions(null).expectOk()
 
             // Assert
             assertThat(result).hasSize(1000)
@@ -374,11 +372,8 @@ class EdgeCaseTest {
             apiClient.token = "invalid-token"
 
             // Act & Assert
-            val exception =
-                assertThrows<Exception> {
-                    apiClient.getCategories()
-                }
-            assertThat(exception.message).contains("401")
+            val failure = apiClient.getCategories().expectErr()
+            assertThat(failure).isEqualTo(ApiFailure.Http(401))
         }
 
     @Test
@@ -393,11 +388,8 @@ class EdgeCaseTest {
             apiClient.token = "token"
 
             // Act & Assert
-            val exception =
-                assertThrows<Exception> {
-                    apiClient.getCategories()
-                }
-            assertThat(exception.message).contains("403")
+            val failure = apiClient.getCategories().expectErr()
+            assertThat(failure).isEqualTo(ApiFailure.Http(403))
         }
 
     @Test
@@ -412,11 +404,8 @@ class EdgeCaseTest {
             apiClient.token = "token"
 
             // Act & Assert
-            val exception =
-                assertThrows<Exception> {
-                    apiClient.getCategories()
-                }
-            assertThat(exception.message).contains("500")
+            val failure = apiClient.getCategories().expectErr()
+            assertThat(failure).isEqualTo(ApiFailure.Http(500))
         }
 
     @Test
@@ -431,11 +420,8 @@ class EdgeCaseTest {
             apiClient.token = "token"
 
             // Act & Assert
-            val exception =
-                assertThrows<Exception> {
-                    apiClient.getCategories()
-                }
-            assertThat(exception.message).contains("503")
+            val failure = apiClient.getCategories().expectErr()
+            assertThat(failure).isEqualTo(ApiFailure.Http(503))
         }
 
     @Test
@@ -522,7 +508,7 @@ class EdgeCaseTest {
             apiClient.token = "token"
 
             // Act
-            val result = apiClient.getAccountGroups()
+            val result = apiClient.getAccountGroups().expectOk()
 
             // Assert
             assertThat(result[0].listAccountInfo[0].listCurrencyInfo).isEmpty()
@@ -549,9 +535,9 @@ class EdgeCaseTest {
             apiClient.token = "token"
 
             // Act - Make concurrent requests
-            val result1 = apiClient.getCategories()
-            val result2 = apiClient.getCategories()
-            val result3 = apiClient.getCategories()
+            val result1 = apiClient.getCategories().expectOk()
+            val result2 = apiClient.getCategories().expectOk()
+            val result3 = apiClient.getCategories().expectOk()
 
             // Assert - All should succeed
             assertThat(result1).isEmpty()
@@ -581,7 +567,7 @@ class EdgeCaseTest {
             apiClient.token = "token"
 
             // Act
-            val result = apiClient.getCategories()
+            val result = apiClient.getCategories().expectOk()
 
             // Assert
             assertThat(result).isEmpty()
@@ -606,7 +592,7 @@ class EdgeCaseTest {
             apiClient.token = "token"
 
             // Act
-            val result = apiClient.getTransactions(0)
+            val result = apiClient.getTransactions(0).expectOk()
 
             // Assert
             assertThat(result).isEmpty()
@@ -634,7 +620,7 @@ class EdgeCaseTest {
             apiClient.token = "token"
 
             // Act
-            val result = apiClient.getTransactions(-1)
+            val result = apiClient.getTransactions(-1).expectOk()
 
             // Assert
             assertThat(result).isEmpty()

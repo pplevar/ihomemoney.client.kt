@@ -110,9 +110,11 @@ suspend fun getAccounts(): List<Account> {
 ```
 
 ### Response Handling
-- `handleResponse<T>()` validates HTTP status and extracts body
-- Login has custom error handling (checks error.code == 0)
-- Throws exceptions on API errors with descriptive messages
+- `interpret<T>()` is the single seam: it validates HTTP status, the response body, and the API `Error.code` at one point, returning an `ApiResult<T>` (`Ok`/`Err`)
+- Failures cross the seam as a typed `ApiFailure` value (`Http` / `Api` / `EmptyBody` / `Malformed`), not as a thrown `Exception` — callers branch on the case
+- All public methods (`login`, `getAccountGroups`, `getAccounts`, `getCategories`, `getTransactions`) return `ApiResult<…>`; `login` returns `ApiResult<Unit>` and stores the token on `Ok`
+- Transport errors (connection refused/timeout) are not modelled by `ApiFailure` and propagate as thrown exceptions
+- Preconditions stay as `IllegalArgumentException` ("Authentication required", "Token cannot be blank")
 
 ### JSON Mapping
 Domain classes use `@SerializedName` for field mapping:
@@ -198,7 +200,7 @@ Configuration loaded via `AppConfig` singleton object.
 
 1. Add method to `HomemoneyApiService` interface with Retrofit annotations
 2. Create response data class with `@SerializedName` annotations
-3. Add convenience method to `HomemoneyApiClient` using `handleResponse()`
+3. Add convenience method to `HomemoneyApiClient` returning `ApiResult<…>` via `interpret()`
 4. Create unit tests in `HomemoneyApiServiceTest`
 5. Create integration tests in `ApiIntegrationTest`
 6. Add edge case tests in `EdgeCaseTest`

@@ -1,6 +1,7 @@
 package ru.levar
 
-import io.github.oshai.kotlinlogging.KotlinLogging
+import com.google.gson.JsonParseException
+import com.google.gson.stream.MalformedJsonException
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Response
@@ -12,9 +13,8 @@ import ru.levar.domain.Account
 import ru.levar.domain.AccountGroup
 import ru.levar.domain.Category
 import ru.levar.domain.Transaction
+import java.io.EOFException
 import java.util.concurrent.TimeUnit
-
-private val logger = KotlinLogging.logger {}
 
 class HomemoneyApiClient(baseUrl: String = AppConfig.serviceUri) {
     private val apiService: HomemoneyApiService
@@ -56,39 +56,34 @@ class HomemoneyApiClient(baseUrl: String = AppConfig.serviceUri) {
         password: String,
         clientId: String,
         clientSecret: String,
-    ): Boolean {
-        return try {
-            val auth = handleResponse(apiService.login(login, password, clientId, clientSecret))
-            token = auth.token
-            true
-        } catch (e: Exception) {
-            logger.error(e) { "Authentication failed: ${e.message}" }
-            false
+    ): ApiResult<Unit> =
+        when (val result = interpret { apiService.login(login, password, clientId, clientSecret) }) {
+            is ApiResult.Ok -> {
+                token = result.value.token
+                ApiResult.Ok(Unit)
+            }
+            is ApiResult.Err -> result
         }
-    }
 
     private fun requireAuthentication() {
         require(_token.isNotBlank()) { "Authentication required. Call login() first." }
     }
 
-    suspend fun getAccountGroups(): List<AccountGroup> {
+    suspend fun getAccountGroups(): ApiResult<List<AccountGroup>> {
         requireAuthentication()
-        val response = apiService.getAccountGroups(token)
-        return handleResponse(response).listAccountGroupInfo
+        return interpret { apiService.getAccountGroups(token) }.map { it.listAccountGroupInfo }
     }
 
-    suspend fun getAccounts(): List<Account> = getAccountGroups().flatMap { it.listAccountInfo }
+    suspend fun getAccounts(): ApiResult<List<Account>> = getAccountGroups().map { groups -> groups.flatMap { it.listAccountInfo } }
 
-    suspend fun getCategories(): List<Category> {
+    suspend fun getCategories(): ApiResult<List<Category>> {
         requireAuthentication()
-        val response = apiService.getCategories(token)
-        return handleResponse(response).listCategory
+        return interpret { apiService.getCategories(token) }.map { it.listCategory }
     }
 
-    suspend fun getTransactions(topCount: Int?): List<Transaction> {
+    suspend fun getTransactions(topCount: Int?): ApiResult<List<Transaction>> {
         requireAuthentication()
-        val response = apiService.getTransactions(token, topCount)
-        return handleResponse(response).listTransaction
+        return interpret { apiService.getTransactions(token, topCount) }.map { it.listTransaction }
     }
 
 //    suspend fun getTransactions(
@@ -121,19 +116,35 @@ class HomemoneyApiClient(baseUrl: String = AppConfig.serviceUri) {
 //        return handleResponse(response)
 //    }
 
-    private fun <T : ApiEnvelope> handleResponse(response: Response<T>): T {
+    /**
+     * The single point where a raw HTTP response is interpreted into an [ApiResult].
+     *
+     * Every failure mode is decided here once: a non-2xx status, a null/empty body,
+     * an API-level error on HTTP 200, and a Gson parse failure (including the empty-body
+     * "End of input"). Transport errors (e.g. connection refused/timeout) are not modelled
+     * by [ApiFailure] and propagate as thrown exceptions.
+     */
+    private suspend fun <T : ApiEnvelope> interpret(call: suspend () -> Response<T>): ApiResult<T> {
+        val response =
+            try {
+                call()
+            } catch (e: Exception) {
+                if (e is JsonParseException || e is MalformedJsonException || e is EOFException) {
+                    return ApiResult.Err(ApiFailure.Malformed(e))
+                }
+                throw e
+            }
+
         if (!response.isSuccessful) {
-            throw Exception("Request failed with code ${response.code()}: ${response.message()}")
+            return ApiResult.Err(ApiFailure.Http(response.code()))
         }
 
-        val body =
-            response.body()
-                ?: throw Exception("Request failed: empty response body")
+        val body = response.body() ?: return ApiResult.Err(ApiFailure.EmptyBody)
 
         if (body.error.code != 0) {
-            throw Exception("API error ${body.error.code}: ${body.error.message}")
+            return ApiResult.Err(ApiFailure.Api(body.error.code, body.error.message))
         }
 
-        return body
+        return ApiResult.Ok(body)
     }
 }
